@@ -1,0 +1,8 @@
+# Define input
+geometry_msgs/PoseStamped target_pose # target_pose of robot-arm end-effector
+---
+#Define output
+# refer to: https://github.com/ros-planning/moveit_msgs/blob/master/msg/MoveItErrorCodes.msg
+int32 result # error code
+int32 SUCCESS=1
+int32 FAILURE=99999

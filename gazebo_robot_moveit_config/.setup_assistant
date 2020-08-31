@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: ur_e_description
+    relative_path: urdf/ur5e_joint_limited_robot.urdf.xacro
+    xacro_args: limited:=true sim:=false gripper:=robotiq_2f_85
+  SRDF:
+    relative_path: config/ur5e.srdf
+  CONFIG:
+    author_name: YinglongMiao
+    author_email: ym420@scarletmail.rutgers.edu
+    generated_timestamp: 1598387448

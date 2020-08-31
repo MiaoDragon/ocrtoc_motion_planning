@@ -1,0 +1,27 @@
+controller_list:
+  - name: fake_robot_arm_controller
+    joints:
+      - shoulder_pan_joint
+      - shoulder_lift_joint
+      - elbow_joint
+      - wrist_1_joint
+      - wrist_2_joint
+      - wrist_3_joint
+  - name: fake_robot_gripper_left_spring_controller
+    joints:
+      []
+  - name: fake_robot_gripper_left_hand_controller
+    joints:
+      - robotiq_2f_85_left_driver_joint
+  - name: fake_robot_gripper_right_spring_controller
+    joints:
+      []
+  - name: fake_robot_gripper_right_hand_controller
+    joints:
+      []
+  - name: fake_robot_gripper_root_controller
+    joints:
+      []
+initial:  # Define initial robot poses.
+  - group: robot_arm
+    pose: home
