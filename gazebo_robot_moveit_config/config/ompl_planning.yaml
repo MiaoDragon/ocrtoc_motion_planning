@@ -201,7 +201,7 @@ robot_gripper_right_hand:
     - SPARS
     - SPARStwo
 robot_gripper_left_spring:
-  default_planner_config: RRTConnect
+  default_planner_config: ""
   planner_configs:
     - SBL
     - EST
@@ -227,7 +227,61 @@ robot_gripper_left_spring:
     - SPARS
     - SPARStwo
 robot_gripper_right_spring:
-  default_planner_config: RRTConnect
+  default_planner_config: ""
+  planner_configs:
+    - SBL
+    - EST
+    - LBKPIECE
+    - BKPIECE
+    - KPIECE
+    - RRT
+    - RRTConnect
+    - RRTstar
+    - TRRT
+    - PRM
+    - PRMstar
+    - FMT
+    - BFMT
+    - PDST
+    - STRIDE
+    - BiTRRT
+    - LBTRRT
+    - BiEST
+    - ProjEST
+    - LazyPRM
+    - LazyPRMstar
+    - SPARS
+    - SPARStwo
+robot_arm_to_gripper_base:
+  default_planner_config: BiTRRT
+  planner_configs:
+    - SBL
+    - EST
+    - LBKPIECE
+    - BKPIECE
+    - KPIECE
+    - RRT
+    - RRTConnect
+    - RRTstar
+    - TRRT
+    - PRM
+    - PRMstar
+    - FMT
+    - BFMT
+    - PDST
+    - STRIDE
+    - BiTRRT
+    - LBTRRT
+    - BiEST
+    - ProjEST
+    - LazyPRM
+    - LazyPRMstar
+    - SPARS
+    - SPARStwo
+  projection_evaluator: joints(shoulder_pan_joint,shoulder_lift_joint)
+  longest_valid_segment_fraction: 0.005
+robot_gripper:
+  default_planner_config: BiTRRT
   planner_configs:
     - SBL
     - EST
