@@ -378,7 +378,7 @@ def plan_grasp(obj_pose1, obj_pose2):
     # generate message
     grasp_srv_request_poses = ObjectPoses()
     grasp_srv_request_poses.object_names.append(model_name)
-    #grasp_srv_request_poses.object_scales.append(scale)
+    grasp_srv_request_poses.object_scales.append(scale[0])
 
     obj_pose = p
     grasp_srv_request_poses.object_poses.append(obj_pose)
