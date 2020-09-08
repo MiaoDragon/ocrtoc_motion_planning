@@ -7,7 +7,7 @@ from motion_planning.scripts.motion_planning import plan_arm_pose_to_pose
 import rospy
 
 def handle_grasp_plan(req):
-    result = plan_grasp(req.object_pose1, req.object_pose2)
+    result = plan_grasp(req.object_name, req.object_pose1, req.object_pose2)
     response = GraspPlanResponse()
     response.result = result
     return response
