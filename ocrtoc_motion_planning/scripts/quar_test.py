@@ -88,6 +88,8 @@ T3 = tf.transformations.compose_matrix(translate=t3, angles=r3)
 
 T3_ = T.dot(T3)
 scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(T3_)
+print("scale:")
+print(scale)
 #R = tf.transformations.quaternion_multiply(tf.transformations.quaternion_from_euler(*angles), quar)
 print("using transformation on object 3:")
 #R = tf.transformations.quaternion_matrix(R)

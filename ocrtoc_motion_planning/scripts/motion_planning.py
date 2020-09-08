@@ -485,8 +485,34 @@ def plan_grasp(obj_pose1, obj_pose2):
 
     # pre_grasp to grasp
     waypoints = [pre_grasp_pose, grasp_pose]
-    cartesian_plan = group.compute_cartesian_path(waypoints, eef_step=0.01, jump_threshold=0., avoid_collisions=False)
+    cartesian_plan, factor = group.compute_cartesian_path(waypoints, eef_step=0.01, jump_threshold=0., avoid_collisions=False)
+    # execute plan
+    arm_cmd_pub = rospy.Publisher(
+        rospy.resolve_name('arm_controller/command'),
+        JointTrajectory, queue_size=10)
 
+    rospy.sleep(1.0) # allow publisher to initialize
+
+    arm_cmd = grasp_plan.joint_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    rospy.sleep(1.0)
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
+
+    # pregrasp to grasp
+
+    arm_cmd = cartesian_plan.joint_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    rospy.sleep(1.0)
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
+
+    print('============ closing gripper...')
+    gripper_closing()
+
+    # define grasp_plan_end_state to connect plan
     grasp_plan_end_state = robot.get_current_state()
     grasp_plan_end_state.joint_state.header = cartesian_plan.joint_trajectory.header
     grasp_plan_end_state.joint_state.name = cartesian_plan.joint_trajectory.joint_names
@@ -495,7 +521,7 @@ def plan_grasp(obj_pose1, obj_pose2):
     grasp_plan_end_state.joint_state.effort = cartesian_plan.joint_trajectory.points[-1].effort
 
     # obtain transformation matrix of object
-    T = object_transformation(obj_pose, object_pose2)
+    T = object_transformation(obj_pose, obj_pose2)
 
     # transform arm pose into the desire one
     target_pose = grasp_pose
@@ -516,37 +542,7 @@ def plan_grasp(obj_pose1, obj_pose2):
     place_plan = place(start_state=grasp_plan_end_state, target_pose=target_pose)
 
     # ** execution of plan **
-    arm_cmd_pub = rospy.Publisher(
-        rospy.resolve_name('arm_controller/command'),
-        JointTrajectory, queue_size=10)
 
-    rospy.sleep(1.0) # allow publisher to initialize
-
-    arm_cmd = grasp_plan.joint_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    rospy.sleep(1.0)
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-
-    arm_cmd_pub = rospy.Publisher(
-        rospy.resolve_name('arm_controller/command'),
-        JointTrajectory, queue_size=10)
-
-    # pregrasp to grasp
-    rospy.sleep(1.0) # allow publisher to initialize
-
-    arm_cmd = cartesian_plan.joint_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    rospy.sleep(1.0)
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-
-
-    #** stage 3: close gripper to pick up object **
-    print('============ closing gripper...')
-    gripper_closing()
 
     #group.detach_object(model_name)
     hello = raw_input("please input\n")
