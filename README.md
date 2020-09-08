@@ -21,5 +21,7 @@ int32 result # error code
 * Step *
 
 ```
+roslaunch gazebo_robot_moveit_config move_group.launch
+rosrun ocrtoc_motion_planning point_cloud_merger.py
 rosrun ocrtoc_motion_planning grasp_plan_server.py # this setups the service server
 ```
