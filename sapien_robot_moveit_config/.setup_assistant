@@ -6,6 +6,6 @@ moveit_setup_assistant_config:
   SRDF:
     relative_path: config/ur5e.srdf
   CONFIG:
-    author_name: YinglongMiao
-    author_email: ym420@scarletmail.rutgers.edu
-    generated_timestamp: 1598383269
+    author_name: Yinglong Miao
+    author_email: yinglong.miao@rutger.edu
+    generated_timestamp: 1599520899

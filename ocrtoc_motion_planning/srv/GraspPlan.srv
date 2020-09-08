@@ -1,8 +1,7 @@
 # Define input
-geometry_msgs/PoseStamped object_pose # target_pose of robot-arm end-effector
+geometry_msgs/Pose object_pose1 # target_pose of robot-arm end-effector
 #geometry_msgs/PoseStamped pre_grasp_pose # pre-grasp pose to allow some safety of the gripper (TO BE added in server code)
-geometry_msgs/PoseStamped grasp_pose # actual grasp pose to go to
-geometry_msgs/PoseStamped drop_pose # target_pose of robot-arm end-effector
+geometry_msgs/Pose object_pose2 # actual grasp pose to go to
 ---
 #Define output
 # refer to: https://github.com/ros-planning/moveit_msgs/blob/master/msg/MoveItErrorCodes.msg

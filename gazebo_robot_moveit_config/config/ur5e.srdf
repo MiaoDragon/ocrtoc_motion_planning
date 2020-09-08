@@ -31,7 +31,7 @@
         <joint name="robotiq_2f_85_right_spring_link_joint" />
     </group>
     <group name="robot_arm_to_gripper_base">
-        <chain base_link="base_link" tip_link="robotiq_2f_85_base" />
+        <chain base_link="base_link" tip_link="ee_link" />
     </group>
     <group name="robot_gripper">
         <joint name="robotiq_2f_85_right_driver_joint" />
@@ -65,10 +65,6 @@
         <joint name="wrist_2_joint" value="0" />
         <joint name="wrist_3_joint" value="0" />
     </group_state>
-    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
-    <end_effector name="robot_gripper_left_hand" parent_link="robotiq_2f_85_base" group="robot_gripper_left_hand" parent_group="robot_arm_to_gripper_base" />
-    <end_effector name="robot_gripper_right_hand" parent_link="robotiq_2f_85_base" group="robot_gripper_left_hand" parent_group="robot_arm_to_gripper_base" />
-    <end_effector name="robot_gripper" parent_link="robotiq_2f_85_base" group="robot_gripper" parent_group="robot_arm_to_gripper_base" />
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
     <disable_collisions link1="base_link" link2="kinect_camera_base" reason="Never" />
     <disable_collisions link1="base_link" link2="kinect_camera_body" reason="Never" />

@@ -281,7 +281,7 @@ robot_arm_to_gripper_base:
   projection_evaluator: joints(shoulder_pan_joint,shoulder_lift_joint)
   longest_valid_segment_fraction: 0.005
 robot_gripper:
-  default_planner_config: BiTRRT
+  default_planner_config: ""
   planner_configs:
     - SBL
     - EST
