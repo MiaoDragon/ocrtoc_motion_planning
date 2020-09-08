@@ -303,13 +303,17 @@ import tf
 
 def object_transformation(object_pose1, object_pose2):
     # given two poses, compute the transformation
-    R1 = quaternion_matrix([object_pose1.orientation.x,object_pose1.orientation.y,object_pose1.orientation.z,object_pose1.orientation.w])
-    R2 = quaternion_matrix([object_pose2.orientation.x,object_pose2.orientation.y,object_pose2.orientation.z,object_pose2.orientation.w])
-    R = R2.dot(tf.transformations.inverse_matrix(R1))
-    angles = tf.transformations.euler_from_matrix(R)
-    trans = np.array([object_pose2.position.x - object_pose1.position.x, object_pose2.position.y - object_pose1.position.y, object_pose2.position.z - object_pose1.position.z])
-    M = tf.transformations.compose_matrix(angles=angles, translate=trans)
-    return M
+    t1 = np.array([object_pose1.position.x,object_pose1.position.y,object_pose1.position.z])
+    r1 = np.array([object_pose1.orientation.x,object_pose1.orientation.y,object_pose1.orientation.z,object_pose1.orientation.w])
+    r1 = tf.transformations.euler_from_quaternion(r1)
+    T1 = tf.transformations.compose_matrix(translate=t1, angles=r1)
+    t2 = np.array([object_pose2.position.x,object_pose2.position.y,object_pose2.position.z])
+    r2 = np.array([object_pose2.orientation.x,object_pose2.orientation.y,object_pose2.orientation.z,object_pose2.orientation.w])
+    r2 = tf.transformations.euler_from_quaternion(r2)
+    T2 = tf.transformations.compose_matrix(translate=t2, angles=r2)
+    T = T2.dot(tf.transformations.inverse_matrix(T1))
+
+    return T
 
 
 
@@ -367,8 +371,6 @@ def plan_grasp(obj_pose1, obj_pose2):
             p.orientation.w = quat[3]
             break
 
-    # use pcd service to generate grasp pose
-
     from grasp_srv.msg import ObjectPoses, Grasps
     from grasp_srv.srv import GraspGen, GraspGenResponse
 
@@ -376,6 +378,8 @@ def plan_grasp(obj_pose1, obj_pose2):
     # generate message
     grasp_srv_request_poses = ObjectPoses()
     grasp_srv_request_poses.object_names.append(model_name)
+    #grasp_srv_request_poses.object_scales.append(scale)
+
     obj_pose = p
     grasp_srv_request_poses.object_poses.append(obj_pose)
     try:
@@ -491,27 +495,25 @@ def plan_grasp(obj_pose1, obj_pose2):
     grasp_plan_end_state.joint_state.effort = cartesian_plan.joint_trajectory.points[-1].effort
 
     # obtain transformation matrix of object
-    M = object_transformation(obj_pose, object_pose2)
+    T = object_transformation(obj_pose, object_pose2)
 
     # transform arm pose into the desire one
-    scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(M)
-    q = tf.transformations.quaternion_from_euler(angles[0], angles[1], angles[2])
-
-    # apply q to the current pose
     target_pose = grasp_pose
-    position = np.array([target_pose.position.x,target_pose.position.y,target_pose.position.z])
-    position = position + trans
-    orientation = np.array([target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z, target_pose.orientation.w])
-    orientation = tf.transformations.quaternion_multiply(q, orientation)
-    target_pose.position.x = position[0]
-    target_pose.position.y = position[1]
-    target_pose.position.z = position[2]
+    t = np.array([target_pose.position.x,target_pose.position.y,target_pose.position.z])
+    r = np.array([target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w])
+    r = tf.transformations.euler_from_quaternion(r)
+    T_grasp = tf.transformations.compose_matrix(translate=t, angles=r)
+    T_target_grasp = T.dot(T_pose)
+    scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(T_target_grasp)
+    target_pose.position.x = trans[0]
+    target_pose.position.y = trans[1]
+    target_pose.position.z = trans[2]
+    orientation = tf.transformations.quaternion_from_euler(*angles)
     target_pose.orientation.x = orientation[0]
     target_pose.orientation.y = orientation[1]
     target_pose.orientation.z = orientation[2]
     target_pose.orientation.w = orientation[3]
-    place_plan = place(start_state=grasp_plan_end_state, target_pose)
-
+    place_plan = place(start_state=grasp_plan_end_state, target_pose=target_pose)
 
     # ** execution of plan **
     arm_cmd_pub = rospy.Publisher(
@@ -595,7 +597,7 @@ def main():
     #plan_arm_state_to_state(None, None)
     #ik_generation(None)
     #plan_arm_pose_to_pose_with_constraints(None, None)
-    plan_grasp(None, None, None, None)
+    plan_grasp(None, None)
     #gripper_retreat(None, 0.3)
     #gripper_openning()
 
