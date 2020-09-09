@@ -484,7 +484,19 @@ def plan_grasp(obj_pose1, obj_pose2):
             #goal_position_tol = goal_position_tol * 4.0
 
     # pre_grasp to grasp
-    waypoints = [copy.deepcopy(grasp_pose)]
+    # generate a number of waypoints in between
+    inter_pose = copy.deepcopy(pre_grasp_pose)
+    pre_pose_xyz = np.array([inter_pose.position.x,inter_pose.position.y,inter_pose.position.z])
+    target_pose_xyz = np.array([grasp_pose.position.x,grasp_pose.position.y,grasp_pose.position.z])
+    num_steps = 10
+    step = (target_pose_xyz - pre_pose_xyz) / num_steps
+    for i in range(1,num_steps):
+        pose_xyz = pre_pose_xyz + i*step
+        inter_pose = copy.deepcopy(inter_pose)
+        inter_pose.position.x = pose_xyz[0]
+        inter_pose.position.y = pose_xyz[1]
+        inter_pose.position.z = pose_xyz[2]
+        waypoints = [copy.deepcopy(inter_pose)]
     cartesian_plan, factor = group.compute_cartesian_path(waypoints, eef_step=0.01, jump_threshold=0., avoid_collisions=False)
     # execute plan
     arm_cmd_pub = rospy.Publisher(
