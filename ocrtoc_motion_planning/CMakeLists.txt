@@ -37,6 +37,8 @@ include_directories(
 )
 catkin_install_python(
     PROGRAMS
+    scripts/motion_planning.py
+    scripts/point_cloud_merger.py
     scripts/grasp_plan_server.py
     scripts/pose_plan_server.py
     scripts/pose_plan_client.py
