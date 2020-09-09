@@ -485,6 +485,8 @@ def plan_grasp(obj_pose1, obj_pose2):
 
     # pre_grasp to grasp
     # generate a number of waypoints in between
+
+    """
     inter_pose = copy.deepcopy(pre_grasp_pose)
     pre_pose_xyz = np.array([inter_pose.position.x,inter_pose.position.y,inter_pose.position.z])
     target_pose_xyz = np.array([grasp_pose.position.x,grasp_pose.position.y,grasp_pose.position.z])
@@ -500,6 +502,8 @@ def plan_grasp(obj_pose1, obj_pose2):
     cartesian_plan, factor = group.compute_cartesian_path(waypoints, eef_step=0.01, jump_threshold=0., avoid_collisions=False)
     print('cartesian plan:')
     print(cartesian_plan)
+    """
+
     # execute plan
     arm_cmd_pub = rospy.Publisher(
         rospy.resolve_name('arm_controller/command'),
@@ -515,6 +519,43 @@ def plan_grasp(obj_pose1, obj_pose2):
     rospy.sleep(2)
 
     # pregrasp to grasp
+
+    rot_matrix = quarternion_to_matrix(grasp_pose.orientation.x, grasp_pose.orientation.y, \
+                                       grasp_pose.orientation.z, grasp_pose.orientation.w)
+    grasp_pose_np = np.array([grasp_pose.position.x, grasp_pose.position.y, grasp_pose.position.z])
+    retreat_vec = rot_matrix.dot(np.array([0.,0,-1]))
+    retreat_step_size = 0.05
+    current_retreat_step = 0.
+
+    for planning_attempt_i in range(10):
+        current_retreat_step = retreat_step_size * planning_attempt_i
+        print('current retreat step: %f' % (current_retreat_step))
+        # obtain the retreated grasping pose
+        current_pose = grasp_pose_np + current_retreat_step * retreat_vec
+        grasp_pose.position.x = current_pose[0]
+        grasp_pose.position.y = current_pose[1]
+        grasp_pose.position.z = current_pose[2]
+        x.pose = grasp_pose
+
+        group.set_pose_target(x)
+        group.set_planning_time(5)
+        group.set_num_planning_attempts(100)
+        group.allow_replanning(True)
+        plan = group.plan()
+        group.clear_pose_targets()
+        group.clear_path_constraints()
+        if plan.joint_trajectory.points:  # True if trajectory contains points
+            #if plan:
+            cartesian_plan = plan
+            break
+        else:
+            cartesian_plan = None
+            print('planning failed. Another attempt is tried...')
+            #goal_position_tol = goal_position_tol * 4.0
+
+
+
+
 
     arm_cmd = cartesian_plan.joint_trajectory
     arm_cmd_pub.publish(arm_cmd)
