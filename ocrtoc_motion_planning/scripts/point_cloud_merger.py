@@ -32,6 +32,8 @@ class PointCloudMerger():
         # for transforming the point cloud to the proper cooridnate
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        rospy.loginfo("#######################Pointcloud merger initialized###############################")
+
     def merge(self, *args):
         """
             merge received point clouds
@@ -64,8 +66,6 @@ class PointCloudMerger():
         #create pcl from points
         merged_pointcloud2 = pcl2.create_cloud_xyz32(header, merged_points)
         #publish
-        print("happily publishing sample pointcloud.. !")
-
         self.merge_pub.publish(merged_pointcloud2)
 
 if __name__ == '__main__':
