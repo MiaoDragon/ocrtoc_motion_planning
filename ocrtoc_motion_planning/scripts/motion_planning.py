@@ -498,6 +498,8 @@ def plan_grasp(obj_pose1, obj_pose2):
         inter_pose.position.z = pose_xyz[2]
         waypoints = [copy.deepcopy(inter_pose)]
     cartesian_plan, factor = group.compute_cartesian_path(waypoints, eef_step=0.01, jump_threshold=0., avoid_collisions=False)
+    print('cartesian plan:')
+    print(cartesian_plan)
     # execute plan
     arm_cmd_pub = rospy.Publisher(
         rospy.resolve_name('arm_controller/command'),
