@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   geometry_msgs
+  trajectory_msgs
   message_generation
   message_runtime
   roscpp
@@ -18,17 +19,18 @@ catkin_python_setup()
 add_service_files(
   FILES
   PosePlan.srv
-  GraspPlan.srv
+  OneShotGraspPlanWithGraspPose.srv
+  OneShotGraspPlanWithObjectPose.srv
 )
 
 #generate_messages()
 
-generate_messages( DEPENDENCIES std_msgs geometry_msgs)
+generate_messages( DEPENDENCIES std_msgs geometry_msgs trajectory_msgs)
 
 
 catkin_package(
   #LIBRARIES motion_planning
-  CATKIN_DEPENDS actionlib actionlib_msgs geometry_msgs message_generation message_runtime roscpp rospy std_msgs
+  CATKIN_DEPENDS actionlib actionlib_msgs geometry_msgs trajectory_msgs message_generation message_runtime roscpp rospy std_msgs
 )
 
 include_directories(
