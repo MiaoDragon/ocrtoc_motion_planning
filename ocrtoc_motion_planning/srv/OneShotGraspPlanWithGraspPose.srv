@@ -13,8 +13,8 @@ geometry_msgs/Pose grasp_pose2 # target object pose
 # =========================================================================================================
 # refer to: https://github.com/ros-planning/moveit_msgs/blob/master/msg/MoveItErrorCodes.msg
 int32 result # error code
-trajectory_msgs/PreGraspTrajectory pre_grasp_trajectory
-trajectory_msgs/PreToGraspTrajectory pre_to_grasp_trajectory
-trajectory_msgs/PlaceTrajectory place_trajectory
+trajectory_msgs/JointTrajectory pre_grasp_trajectory
+trajectory_msgs/JointTrajectory pre_to_grasp_trajectory
+trajectory_msgs/JointTrajectory place_trajectory
 int32 SUCCESS=1
 int32 FAILURE=99999
