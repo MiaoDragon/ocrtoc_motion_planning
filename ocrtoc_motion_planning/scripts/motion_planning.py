@@ -301,6 +301,26 @@ def gripper_closing():
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import tf
 
+def tf_decompose(obj_tf):
+    """
+    decompose the TF matrix. Return the scale and transformed Pose
+
+    scale: vector of size 3
+    pose: geometry_msgs.msg/Pose
+    """
+    scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(obj_tf)
+    R = tf.transformations.euler_matrix(*angles)
+    quat = tf.transformations.quaternion_from_matrix(R)
+    p = Pose()
+    p.position.x = pose[0,3]
+    p.position.y = pose[1,3]
+    p.position.z = pose[2,3]
+    p.orientation.x = quat[0]
+    p.orientation.y = quat[1]
+    p.orientation.z = quat[2]
+    p.orientation.w = quat[3]
+    return scale, p
+
 def object_transformation(object_pose1, object_pose2):
     # given two poses, compute the transformation
     t1 = np.array([object_pose1.position.x,object_pose1.position.y,object_pose1.position.z])
@@ -317,7 +337,7 @@ def object_transformation(object_pose1, object_pose2):
 
 
 
-def plan_grasp(obj_pose1, obj_pose2):
+def plan_grasp(model_name, obj_tf_1, obj_tf_2):
     """
     function:
     ===========================================
@@ -334,9 +354,9 @@ def plan_grasp(obj_pose1, obj_pose2):
 
     input:
     ===========================================
-    obj_pose1, obj_pose2
+    obj_tf_1, obj_tf_2
 
-    format: geometry_msgs/PoseStamped
+    format: geometry_msgs/Pose
 
     output:
     ===========================================
@@ -348,28 +368,10 @@ def plan_grasp(obj_pose1, obj_pose2):
     group = moveit_commander.MoveGroupCommander(group_arm_name)
     print('end effector:')
     print(group.get_end_effector_link())
-    # specify pose from json
-    import json
-    scene_pose = open('../scene_info/1-1.json', 'r')
-    scene_pose = json.load(scene_pose)
-    model_name = 'pudding_box'
-    # find the model_name in the scene_pose
-    for i in range(len(scene_pose)):
-        if scene_pose[i]['name'] == model_name:
-            # record the pose
-            pose = np.array(scene_pose[i]['pose_world'])
-            scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(pose)
-            R = tf.transformations.euler_matrix(*angles)
-            quat = tf.transformations.quaternion_from_matrix(R)
-            p = Pose()
-            p.position.x = pose[0,3]
-            p.position.y = pose[1,3]
-            p.position.z = pose[2,3]
-            p.orientation.x = quat[0]
-            p.orientation.y = quat[1]
-            p.orientation.z = quat[2]
-            p.orientation.w = quat[3]
-            break
+
+    # obtain pose from tf input
+    scale, obj_pose1 = tf_decompose(obj_tf_1)
+    _, obj_pose2 = tf_decompose(obj_tf_2)
 
     from grasp_srv.msg import ObjectPoses, Grasps
     from grasp_srv.srv import GraspGen, GraspGenResponse
@@ -379,9 +381,7 @@ def plan_grasp(obj_pose1, obj_pose2):
     grasp_srv_request_poses = ObjectPoses()
     grasp_srv_request_poses.object_names.append(model_name)
     grasp_srv_request_poses.object_scales.append(scale[0])
-
-    obj_pose = p
-    grasp_srv_request_poses.object_poses.append(obj_pose)
+    grasp_srv_request_poses.object_poses.append(obj_pose1)
     try:
         grasp_gen = rospy.ServiceProxy('grasp_gen', GraspGen)
         resp1 = grasp_gen(grasp_srv_request_poses)
@@ -576,7 +576,7 @@ def plan_grasp(obj_pose1, obj_pose2):
     grasp_plan_end_state.joint_state.effort = cartesian_plan.joint_trajectory.points[-1].effort
 
     # obtain transformation matrix of object
-    T = object_transformation(obj_pose, obj_pose2)
+    T = object_transformation(obj_pose1, obj_pose2)
 
     # transform arm pose into the desire one
     target_pose = grasp_pose
@@ -648,7 +648,25 @@ def main():
     #plan_arm_state_to_state(None, None)
     #ik_generation(None)
     #plan_arm_pose_to_pose_with_constraints(None, None)
-    plan_grasp(None, None)
+
+    import json
+    scene_pose = open('../scene_info/1-1.json', 'r')
+    scene_pose = json.load(scene_pose)
+    model_name = 'pudding_box'
+    # find the model_name in the scene_pose
+    for i in range(len(scene_pose)):
+        if scene_pose[i]['name'] == model_name:
+            # record the pose
+            start_tf = np.array(scene_pose[i]['pose_world'])
+            scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(start_tf)
+            break
+    target_pose = Pose()
+    position = np.array([0.25974133610725403, -0.3102521002292633, 0.009862901642918587])
+    orientation = np.array([0.022348699698035056, -0.01139162625176719, -9.36981416203137e-05])
+
+    # compose into TF matrix
+    target_tf = tf.transformations.compose_matrix(scale=scale, shear=shear, angles=orientation, trans=position, persp=persp)
+    plan_grasp(model_name, start_tf, target_tf)
     #gripper_retreat(None, 0.3)
     #gripper_openning()
 
