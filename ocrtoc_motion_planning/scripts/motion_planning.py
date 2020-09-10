@@ -665,7 +665,7 @@ def main():
     orientation = np.array([0.022348699698035056, -0.01139162625176719, -9.36981416203137e-05])
 
     # compose into TF matrix
-    target_tf = tf.transformations.compose_matrix(scale=scale, shear=shear, angles=orientation, trans=position, persp=persp)
+    target_tf = tf.transformations.compose_matrix(scale=scale, shear=shear, angles=orientation, translate=position, perspective=persp)
     plan_grasp(model_name, start_tf, target_tf)
     #gripper_retreat(None, 0.3)
     #gripper_openning()
