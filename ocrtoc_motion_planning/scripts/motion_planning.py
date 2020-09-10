@@ -175,32 +175,8 @@ def gripper_retreat(x, retreat_step_size):
     # test data
     #scene.remove_world_object(model_name)
     #rospy.sleep(2)
-    """
-    p = PoseStamped()
-    p.header.frame_id = robot.get_planning_frame()
-    p.pose.position.x = 0.1
-    p.pose.position.y = 0.3
-    p.pose.position.z = 0.1#0.1
-    p.pose.orientation.x = 0.
-    p.pose.orientation.y = 0.
-    p.pose.orientation.z = 0.
-    p.pose.orientation.w = 1.
-
-    scene.add_mesh(name=model_name, pose=p, \
-                    filename='/root/ocrtoc_materials/models/%s/meshes/textured.obj' % (model_name), size=(1, 1, 1))
-    """
     # plan to the target position first
     pre_grasp_pose = Pose()
-    """
-    pre_grasp_pose.position.x = 0.176507042334
-    #pre_grasp_pose.position.y = 0.262969680106
-    pre_grasp_pose.position.y = 0.06
-    pre_grasp_pose.position.z = 0.145262507441
-    pre_grasp_pose.orientation.x = -0.00404578006085
-    pre_grasp_pose.orientation.y = -0.699499529354
-    pre_grasp_pose.orientation.z = 0.00302342393036
-    pre_grasp_pose.orientation.w = 0.714615210449
-    """
     x = group.get_current_pose()
     print('header of pose:')
     print(x.header)
@@ -312,9 +288,9 @@ def tf_decompose(obj_tf):
     R = tf.transformations.euler_matrix(*angles)
     quat = tf.transformations.quaternion_from_matrix(R)
     p = Pose()
-    p.position.x = pose[0,3]
-    p.position.y = pose[1,3]
-    p.position.z = pose[2,3]
+    p.position.x = trans[0]
+    p.position.y = trans[1]
+    p.position.z = trans[2]
     p.orientation.x = quat[0]
     p.orientation.y = quat[1]
     p.orientation.z = quat[2]
@@ -327,6 +303,7 @@ def object_transformation(object_pose1, object_pose2):
     r1 = np.array([object_pose1.orientation.x,object_pose1.orientation.y,object_pose1.orientation.z,object_pose1.orientation.w])
     r1 = tf.transformations.euler_from_quaternion(r1)
     T1 = tf.transformations.compose_matrix(translate=t1, angles=r1)
+
     t2 = np.array([object_pose2.position.x,object_pose2.position.y,object_pose2.position.z])
     r2 = np.array([object_pose2.orientation.x,object_pose2.orientation.y,object_pose2.orientation.z,object_pose2.orientation.w])
     r2 = tf.transformations.euler_from_quaternion(r2)
@@ -426,10 +403,10 @@ def plan_grasp(model_name, obj_tf_1, obj_tf_2):
                                        pre_grasp_pose.orientation.z, pre_grasp_pose.orientation.w)
     pre_grasp_pose_np = np.array([pre_grasp_pose.position.x, pre_grasp_pose.position.y, pre_grasp_pose.position.z])
     retreat_vec = rot_matrix.dot(np.array([-1.,0,0]))
-    retreat_step_size = 0.05
+    retreat_step_size = 0.001
     current_retreat_step = 0.
 
-    for planning_attempt_i in range(10):
+    for planning_attempt_i in range(100):
         current_retreat_step = retreat_step_size * planning_attempt_i
         print('current retreat step: %f' % (current_retreat_step))
         # obtain the retreated grasping pose
@@ -486,48 +463,24 @@ def plan_grasp(model_name, obj_tf_1, obj_tf_2):
     # pre_grasp to grasp
     # generate a number of waypoints in between
 
-    """
-    inter_pose = copy.deepcopy(pre_grasp_pose)
-    pre_pose_xyz = np.array([inter_pose.position.x,inter_pose.position.y,inter_pose.position.z])
-    target_pose_xyz = np.array([grasp_pose.position.x,grasp_pose.position.y,grasp_pose.position.z])
-    num_steps = 10
-    step = (target_pose_xyz - pre_pose_xyz) / num_steps
-    for i in range(1,num_steps):
-        pose_xyz = pre_pose_xyz + i*step
-        inter_pose = copy.deepcopy(inter_pose)
-        inter_pose.position.x = pose_xyz[0]
-        inter_pose.position.y = pose_xyz[1]
-        inter_pose.position.z = pose_xyz[2]
-        waypoints = [copy.deepcopy(inter_pose)]
-    cartesian_plan, factor = group.compute_cartesian_path(waypoints, eef_step=0.01, jump_threshold=0., avoid_collisions=False)
-    print('cartesian plan:')
-    print(cartesian_plan)
-    """
-
-    # execute plan
-    arm_cmd_pub = rospy.Publisher(
-        rospy.resolve_name('arm_controller/command'),
-        JointTrajectory, queue_size=10)
-    hello = raw_input("please input\n")
-    rospy.sleep(1.0) # allow publisher to initialize
-
-    arm_cmd = grasp_plan.joint_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    rospy.sleep(1.0)
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-
     # pregrasp to grasp
+
+    pre_grasp_plan_end_state = robot.get_current_state()
+    pre_grasp_plan_end_state.joint_state.header = grasp_plan.joint_trajectory.header
+    pre_grasp_plan_end_state.joint_state.name = grasp_plan.joint_trajectory.joint_names
+    pre_grasp_plan_end_state.joint_state.position = grasp_plan.joint_trajectory.points[-1].positions
+    pre_grasp_plan_end_state.joint_state.velocity = grasp_plan.joint_trajectory.points[-1].velocities
+    pre_grasp_plan_end_state.joint_state.effort = grasp_plan.joint_trajectory.points[-1].effort
+
 
     rot_matrix = quarternion_to_matrix(grasp_pose.orientation.x, grasp_pose.orientation.y, \
                                        grasp_pose.orientation.z, grasp_pose.orientation.w)
     grasp_pose_np = np.array([grasp_pose.position.x, grasp_pose.position.y, grasp_pose.position.z])
     retreat_vec = rot_matrix.dot(np.array([-1.,0,0]))
-    retreat_step_size = 0.05
+    retreat_step_size = 0.001
     current_retreat_step = 0.
 
-    for planning_attempt_i in range(10):
+    for planning_attempt_i in range(100):
         current_retreat_step = retreat_step_size * planning_attempt_i
         print('current retreat step: %f' % (current_retreat_step))
         # obtain the retreated grasping pose
@@ -537,6 +490,7 @@ def plan_grasp(model_name, obj_tf_1, obj_tf_2):
         grasp_pose.position.z = current_pose[2]
         x.pose = grasp_pose
 
+        group.set_start_state(pre_grasp_plan_end_state)
         group.set_pose_target(x)
         group.set_planning_time(5)
         group.set_num_planning_attempts(100)
@@ -554,19 +508,6 @@ def plan_grasp(model_name, obj_tf_1, obj_tf_2):
             #goal_position_tol = goal_position_tol * 4.0
 
 
-
-
-
-    arm_cmd = cartesian_plan.joint_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    rospy.sleep(1.0)
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-
-    print('============ closing gripper...')
-    gripper_closing()
-
     # define grasp_plan_end_state to connect plan
     grasp_plan_end_state = robot.get_current_state()
     grasp_plan_end_state.joint_state.header = cartesian_plan.joint_trajectory.header
@@ -579,12 +520,12 @@ def plan_grasp(model_name, obj_tf_1, obj_tf_2):
     T = object_transformation(obj_pose1, obj_pose2)
 
     # transform arm pose into the desire one
-    target_pose = grasp_pose
+    target_pose = copy.deepcopy(grasp_pose)
     t = np.array([target_pose.position.x,target_pose.position.y,target_pose.position.z])
     r = np.array([target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z,target_pose.orientation.w])
     r = tf.transformations.euler_from_quaternion(r)
     T_grasp = tf.transformations.compose_matrix(translate=t, angles=r)
-    T_target_grasp = T.dot(T_pose)
+    T_target_grasp = T.dot(T_grasp)
     scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(T_target_grasp)
     target_pose.position.x = trans[0]
     target_pose.position.y = trans[1]
@@ -596,16 +537,52 @@ def plan_grasp(model_name, obj_tf_1, obj_tf_2):
     target_pose.orientation.w = orientation[3]
     place_plan = place(start_state=grasp_plan_end_state, target_pose=target_pose)
 
+    print('obj pose1:')
+    print(obj_pose1)
+    print('obj pose2:')
+    print(obj_pose2)
+    print('grasp pose:')
+    print(grasp_pose)
+    print('place pose:')
+    print(target_pose)
+
     # ** execution of plan **
+    # execute plan for grasping
+    arm_cmd_pub = rospy.Publisher(
+        rospy.resolve_name('arm_controller/command'),
+        JointTrajectory, queue_size=10)
+    hello = raw_input("please input\n")
+    rospy.sleep(1.0) # allow publisher to initialize
 
+    arm_cmd = grasp_plan.joint_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    rospy.sleep(1.0)
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
 
-    #group.detach_object(model_name)
+    arm_cmd = cartesian_plan.joint_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    rospy.sleep(1.0)
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
+
+    print('============ closing gripper...')
+    gripper_closing()
+
+    # execute plan for placing
     hello = raw_input("please input\n")
     rospy.sleep(2)
     arm_cmd = place_plan.joint_trajectory
     arm_cmd_pub.publish(arm_cmd)
     rospy.loginfo("Pub arm_cmd")
     rospy.sleep(1.0)
+
+    # open gripper
+    print('=========== openning gripper...')
+    gripper_openning()
+
 
 import copy
 def place(start_state, target_pose):
@@ -618,11 +595,7 @@ def place(start_state, target_pose):
 
     for planning_attempt_i in range(10):
         # obtain the retreated grasping pose
-        start_state = group.get_current_state()
-        start_state.joint_state
-
-
-        group.set_start_state()
+        group.set_start_state(start_state)
         group.set_pose_target(target_pose)
         group.set_planning_time(5)
         group.set_num_planning_attempts(100)
@@ -653,6 +626,8 @@ def main():
     scene_pose = open('../scene_info/1-1.json', 'r')
     scene_pose = json.load(scene_pose)
     model_name = 'pudding_box'
+    #model_name = 'master_chef_can'
+    #model_name = 'wood_block'
     # find the model_name in the scene_pose
     for i in range(len(scene_pose)):
         if scene_pose[i]['name'] == model_name:
@@ -661,8 +636,31 @@ def main():
             scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(start_tf)
             break
     target_pose = Pose()
-    position = np.array([0.25974133610725403, -0.3102521002292633, 0.009862901642918587])
-    orientation = np.array([0.022348699698035056, -0.01139162625176719, -9.36981416203137e-05])
+
+    # jenga
+    #data_str = '-0.0599994957447052 -0.31989747285842896 0.014999995008111 2.261107306891991e-09 -1.8113155351356218e-09 -6.071384286259734e-09'
+    # potted_meat_can
+    #data_str = '0.15989847481250763 0.29000547528266907 0.04212800785899162 -4.840692449249814e-08 -4.5454357156415357e-07 -6.927437318496676e-08'
+    # master chef can
+    #data_str = '-0.03987777605652809 0.32008427381515503 0.03530200198292732 -1.4431422264283453e-06 -7.782947982250227e-07 -3.5607089180211774e-07'
+    #data = data_str.split()
+    #for i in range(len(data)):
+    #    data[i] = float(data[i])
+
+    #data = np.array(data)
+
+    # below we don't parse the str
+    #data = np.array([0.09994173049926758, -0.31943440437316895, 0.022629257291555405, \
+    #-0.005208467812430025, 0.005718712075542679, 0.005303920438713571])  # wood_block
+    data = np.array([0.25974133610725403, -0.3102521002292633, 0.009862901642918587, \
+    0.022348699698035056, -0.01139162625176719, -9.36981416203137e-05])  # pudding_box
+
+
+
+    #position = np.array([0.25974133610725403, -0.3102521002292633, 0.009862901642918587])
+    #orientation = np.array([0.022348699698035056, -0.01139162625176719, -9.36981416203137e-05])
+    position = data[:3]
+    orientation = data[3:]
 
     # compose into TF matrix
     target_tf = tf.transformations.compose_matrix(scale=scale, shear=shear, angles=orientation, translate=position, perspective=persp)
