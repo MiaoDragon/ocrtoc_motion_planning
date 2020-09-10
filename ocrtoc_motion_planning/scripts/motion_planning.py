@@ -648,8 +648,8 @@ def main():
     #plan_arm_state_to_state(None, None)
     #ik_generation(None)
     #plan_arm_pose_to_pose_with_constraints(None, None)
-    #plan_grasp(None, None)
-    gripper_retreat(None, 0.3)
+    plan_grasp(None, None)
+    #gripper_retreat(None, 0.3)
     #gripper_openning()
 
 if __name__ == "__main__":
