@@ -166,7 +166,7 @@ def gripper_retreat(x, retreat_step_size):
     """
     robot = moveit_commander.RobotCommander()
     scene = moveit_commander.PlanningSceneInterface()
-    group_arm_name = "robot_arm_to_gripper_base"
+    group_arm_name = "robot_arm"
     group_gripper_name = "robot_gripper"
     group = moveit_commander.MoveGroupCommander(group_arm_name)
     print('end effector:')
@@ -232,7 +232,7 @@ def gripper_retreat(x, retreat_step_size):
                                        pre_grasp_pose.orientation.z, pre_grasp_pose.orientation.w)
     pre_grasp_pose_np = np.array([pre_grasp_pose.position.x, pre_grasp_pose.position.y, pre_grasp_pose.position.z])
     #retreat_vec = np.array([0.,0,1]).dot(rot_matrix)
-    retreat_vec = rot_matrix.dot(np.array([0.,0.,-1.]))
+    retreat_vec = rot_matrix.dot(np.array([-1.,0.,0.]))
     retreat_step_size = 0.2
     current_retreat_step = 0.
 
@@ -425,7 +425,7 @@ def plan_grasp(obj_pose1, obj_pose2):
     rot_matrix = quarternion_to_matrix(pre_grasp_pose.orientation.x, pre_grasp_pose.orientation.y, \
                                        pre_grasp_pose.orientation.z, pre_grasp_pose.orientation.w)
     pre_grasp_pose_np = np.array([pre_grasp_pose.position.x, pre_grasp_pose.position.y, pre_grasp_pose.position.z])
-    retreat_vec = rot_matrix.dot(np.array([0.,0,-1]))
+    retreat_vec = rot_matrix.dot(np.array([-1.,0,0]))
     retreat_step_size = 0.05
     current_retreat_step = 0.
 
@@ -523,7 +523,7 @@ def plan_grasp(obj_pose1, obj_pose2):
     rot_matrix = quarternion_to_matrix(grasp_pose.orientation.x, grasp_pose.orientation.y, \
                                        grasp_pose.orientation.z, grasp_pose.orientation.w)
     grasp_pose_np = np.array([grasp_pose.position.x, grasp_pose.position.y, grasp_pose.position.z])
-    retreat_vec = rot_matrix.dot(np.array([0.,0,-1]))
+    retreat_vec = rot_matrix.dot(np.array([-1.,0,0]))
     retreat_step_size = 0.05
     current_retreat_step = 0.
 
