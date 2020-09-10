@@ -1,0 +1,20 @@
+# ** Define input
+# =========================================================================================================
+# in this service, we do not use grasp pose generation service for motion planning.
+# we just need to go to the grasp_pose1, close the gripper, go to the grasp_pose2, and open the gripper
+# =========================================================================================================
+geometry_msgs/Pose grasp_pose1 # initial object pose
+geometry_msgs/Pose grasp_pose2 # target object pose
+---
+# ** Define output
+# =========================================================================================================
+# We only return the one-shot planning result as a list of planned trajectory.
+# result variable indicates if the entire pipeline fails after several trials.
+# =========================================================================================================
+# refer to: https://github.com/ros-planning/moveit_msgs/blob/master/msg/MoveItErrorCodes.msg
+int32 result # error code
+trajectory_msgs/PreGraspTrajectory pre_grasp_trajectory
+trajectory_msgs/PreToGraspTrajectory pre_to_grasp_trajectory
+trajectory_msgs/PlaceTrajectory place_trajectory
+int32 SUCCESS=1
+int32 FAILURE=99999
