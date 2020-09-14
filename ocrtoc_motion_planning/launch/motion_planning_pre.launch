@@ -1,6 +1,0 @@
-<launch>
-  <include file="$(find gazebo_robot_moveit_config)/launch/move_group.launch">
-  </include>
-  <node name="point_cloud_merger" pkg="motion_planning" type="point_cloud_merger.py">
-  </node>
-</launch>

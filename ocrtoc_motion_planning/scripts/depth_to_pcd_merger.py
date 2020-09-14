@@ -117,8 +117,8 @@ class PointCloudFilterMerger():
         pcd1 = self.color_depth_to_pcd(color1, depth1, cam_intrinsics_1)
         pcd2 = self.color_depth_to_pcd(color2, depth2, cam_intrinsics_2)
 
-        pcd1 = pcd1.points
-        pcd2 = pcd2.points
+        pcd1 = np.asarray(pcd1.points)
+        pcd2 = np.asarray(pcd2.points)
         print('pcd1: ')
         print(np.asarray(pcd1))
 
@@ -130,10 +130,15 @@ class PointCloudFilterMerger():
         # convert to PointCloud message to transform and merge
         header = std_msgs.msg.Header()
         header.stamp = rospy.Time.now()
+        #header.frame_id = 'world'
         header.frame_id =depth1_msg.header.frame_id
         pcd1_msg = pcl2.create_cloud_xyz32(header, pcd1)
         print('pcd1_msg:')
         print(pcd1_msg.header)
+        # pcd1_msg is correct after publishing
+        self.pcd_pub.publish(pcd1_msg)
+        return
+
         header = std_msgs.msg.Header()
         header.stamp = rospy.Time.now()
         header.frame_id =depth2_msg.header.frame_id
@@ -145,7 +150,9 @@ class PointCloudFilterMerger():
         # merge points
         pcd_1 = self.pcd_msg_to_pcd(pcd1_msg)
         pcd_2 = self.pcd_msg_to_pcd(pcd2_msg)
-        merged_points = np.concatenate([pcd_1,pcd_2])
+        merged_points = []
+        merged_points += pcd_1
+        merged_points += pcd_2
 
         print('length of point cloud: %d' % (len(merged_points)))
         #merged_points = filter(merged_points, 0.01, 0.1)

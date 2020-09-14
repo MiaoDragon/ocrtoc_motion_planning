@@ -40,6 +40,7 @@ include_directories(
 catkin_install_python(
     PROGRAMS
     scripts/motion_planning.py
+    scripts/depth_to_pcd_merger.py
     scripts/point_cloud_merger.py
     scripts/one_shot_grasp_with_object_pose_server.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
