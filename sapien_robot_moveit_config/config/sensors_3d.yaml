@@ -6,5 +6,5 @@ sensors:
     padding_offset: 0.03
     padding_scale: 1.0
     point_cloud_topic: /camera/depth/points_merged
-    point_subsample: 1
+    point_subsample: 2
     sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater

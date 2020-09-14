@@ -14,7 +14,6 @@ import tf2_ros
 
 import numpy as np
 
-
 class PointCloudMerger():
     '''
     On receiving point cloud messages, merge them together
@@ -32,7 +31,36 @@ class PointCloudMerger():
         # for transforming the point cloud to the proper cooridnate
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
+        self.sub_sample_ratio = 0.5  # how many to keep
+
         rospy.loginfo("#######################Pointcloud merger initialized###############################")
+    """
+    def filter(xyz, radius, epsilon):
+        # from https://github.com/aipiano/guided-filter-point-cloud-denoise/blob/master/main.py
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(np.array(xyz))
+        kdtree = o3d.KDTreeFlann(pcd)
+        points_copy = np.array(pcd.points)
+        points = np.asarray(pcd.points)
+        num_points = len(pcd.points)
+
+        for i in range(num_points):
+            k, idx, _ = kdtree.search_radius_vector_3d(pcd.points[i], radius)
+            if k < 3:
+                continue
+
+            neighbors = points[idx, :]
+            mean = np.mean(neighbors, 0)
+            cov = np.cov(neighbors.T)
+            e = np.linalg.inv(cov + epsilon * np.eye(3))
+
+            A = cov.dot(e)
+            b = mean - A.dot(mean)
+
+            points_copy[i] = A.dot(points[i]) + b
+        return points_copy
+    """
 
     def merge(self, *args):
         """
@@ -40,10 +68,13 @@ class PointCloudMerger():
             also preprocess: delete points that are outside of the boundary
         """
         # take any number of input arguments
+
         merged_points = []
         for points in args:
             # obtain the tf transform for this link
             #trans = self.tf_buffer.lookup_transform('world', points.header.frame_id, points.header.stamp, rospy.Duration(1))
+            print('points header frame:')
+            print(points.header.frame_id)
             trans = self.tf_buffer.lookup_transform('world', points.header.frame_id, rospy.Time(0), rospy.Duration(1))  # ask for last known info
             points = do_transform_cloud(points, trans)
             points_list = []
@@ -58,8 +89,14 @@ class PointCloudMerger():
                     # remove camera point cloud
                     continue
                 """
-                points_list.append([p[0],p[1],p[2]])
+                # subsample
+                value = np.random.uniform(low=0.,high=1.0)
+                if value <= self.sub_sample_ratio:
+                    points_list.append([p[0],p[1],p[2]])
             merged_points += points_list
+        print('length of point cloud: %d' % (len(merged_points)))
+        #merged_points = filter(merged_points, 0.01, 0.1)
+
         header = std_msgs.msg.Header()
         header.stamp = rospy.Time.now()
         header.frame_id = 'world'

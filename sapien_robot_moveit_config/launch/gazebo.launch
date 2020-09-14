@@ -2,7 +2,7 @@
 <launch>
   <arg name="paused" default="false"/>
   <arg name="gazebo_gui" default="true"/>
-  <arg name="urdf_path" default="$(find ocrtoc_task)/urdf/ur5e.urdf"/>
+  <arg name="urdf_path" default="$(find sapien_simulator)/urdf/ur5e.urdf"/>
 
   <!-- startup simulated world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">

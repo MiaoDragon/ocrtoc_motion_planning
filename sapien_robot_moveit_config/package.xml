@@ -5,8 +5,8 @@
   <description>
      An automatically generated package with all the configuration and launch files for using the ur5e with the MoveIt! Motion Planning Framework
   </description>
-  <author email="yinglong.miao@rutger.edu">Yinglong Miao</author>
-  <maintainer email="yinglong.miao@rutger.edu">Yinglong Miao</maintainer>
+  <author email="yinglong.miao@rutgers.edu">Yinglong Miao</author>
+  <maintainer email="yinglong.miao@rutgers.edu">Yinglong Miao</maintainer>
 
   <license>BSD</license>
 
@@ -28,8 +28,7 @@
   <run_depend>xacro</run_depend>
   <!-- This package is referenced in the warehouse launch files, but does not build out of the box at the moment. Commented the dependency until this works. -->
   <!-- <run_depend>warehouse_ros_mongo</run_depend> -->
-  <build_depend>ocrtoc_task</build_depend>
-  <run_depend>ocrtoc_task</run_depend>
+    <run_depend>sapien_simulator</run_depend>
 
 
 </package>

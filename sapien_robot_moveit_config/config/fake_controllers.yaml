@@ -7,6 +7,11 @@ controller_list:
       - wrist_1_joint
       - wrist_2_joint
       - wrist_3_joint
+  - name: fake_robot_gripper_controller
+    joints:
+      - robotiq_2f_85_left_driver_joint
+      - robotiq_2f_85_right_driver_joint
+      - robotiq_2f_85_left_driver_mimic_joint
 initial:  # Define initial robot poses.
-#  - group: robot_arm
-#    pose: home
+  - group: robot_arm
+    pose: home

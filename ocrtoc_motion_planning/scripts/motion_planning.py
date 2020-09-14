@@ -26,6 +26,11 @@ from control_msgs.msg import GripperCommandActionGoal
 
 #======================================================================================================
 #========================================  Tool Box  ==================================================
+robot = moveit_commander.RobotCommander()
+group_arm_name = "robot_arm"
+group = moveit_commander.MoveGroupCommander(group_arm_name)
+scene = moveit_commander.PlanningSceneInterface()
+
 def scale_pose_to_tf(scale=None, pose=None):
     t = np.array([pose.position.x,pose.position.y,pose.position.z])
     r = np.array([pose.orientation.x,pose.orientation.y,pose.orientation.z,pose.orientation.w])
@@ -135,9 +140,9 @@ from moveit_msgs.srv import GetPositionIK
 
 def ik(pose, collision=False, init_robot_state=None):
     # verify if the pose is in collision
-    robot = moveit_commander.RobotCommander()
-    group_arm_name = "robot_arm"
-    group = moveit_commander.MoveGroupCommander(group_arm_name)
+    #robot = moveit_commander.RobotCommander()
+    #group_arm_name = "robot_arm"
+    #group = moveit_commander.MoveGroupCommander(group_arm_name)
     if init_robot_state is None:
         init_robot_state = robot.get_current_state()
     # call MoveIt! IK service to compute the robot state from the pose
@@ -171,9 +176,9 @@ def ik(pose, collision=False, init_robot_state=None):
 
 def verify_pose(pose):
     # verify if the pose is in collision
-    robot = moveit_commander.RobotCommander()
-    group_arm_name = "robot_arm"
-    group = moveit_commander.MoveGroupCommander(group_arm_name)
+    #robot = moveit_commander.RobotCommander()
+    #group_arm_name = "robot_arm"
+    #group = moveit_commander.MoveGroupCommander(group_arm_name)
     #print('=========computing IK without collision========')
     #robot_state = ik(pose, collision=False)
     #print('=========computing IK with collision========')
@@ -212,7 +217,8 @@ def gripper_closing():
     rospy.loginfo("Pub gripper_cmd for closing")
     rospy.sleep(1.0)
 
-def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
+
+def one_shot_grasp_with_object_pose_attach_object(model_name, scale, obj_pose1, obj_pose2):
     """
     function:
     ===========================================
@@ -224,7 +230,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
     2. plan a path to pre-grasp pose
     3. plan a cartesian path to grasp pose
     <-- execute gripper closing -->
-    4. plan a path to drop pose
+    4. Attach the object to the gripper. plan a path to drop pose
     <-- execute gipper openning -->
 
     input:
@@ -293,7 +299,303 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
 
     retreat_step_size = 0.001
     current_retreat_step = 0.
+    x = group.get_current_pose()
 
+    for planning_attempt_i in range(100):
+        current_retreat_step = retreat_step_size * planning_attempt_i
+        print('current retreat step: %f' % (current_retreat_step))
+        # obtain the retreated grasping pose
+        current_pose = pre_grasp_pose_np + current_retreat_step * retreat_vec
+        pre_grasp_pose.position.x = current_pose[0]
+        pre_grasp_pose.position.y = current_pose[1]
+        pre_grasp_pose.position.z = current_pose[2]
+        # verify if the pose is valid by IK and Collision Check
+        status = verify_pose(pre_grasp_pose)
+        if not status:
+            pre_grasp_plan = None
+            print('Goal pose is not valid. Another attempt is tried...')
+            continue
+        x.pose = pre_grasp_pose
+
+        group.set_pose_target(x)
+        group.set_planning_time(5)
+        group.set_num_planning_attempts(100)
+        group.allow_replanning(True)
+
+        # set constraint
+        """
+        path_constraint = Constraints()
+        path_constraint.name = "boundary_constraint"
+        position_constraint = PositionConstraint()
+        position_constraint.header.frame_id = robot.get_planning_frame()
+        position_constraint.link_name = group.get_end_effector_link()
+        #position_constrint.target_point_offset =
+
+        # define the bounding volume of the constraint as a box around the table
+        constraint_region = BoundingVolume()
+        primitive = SolidPrimitive()
+        primitive.type = 1
+        table_x_max = 0.8
+        table_y_max = 0.8
+        z_max = 0.4
+        primitive.dimensions = [table_x_max*2, table_y_max*2, z_max*2]
+        constraint_region.primitives.append(primitive)
+        position_constraint.constraint_region = constraint_region
+        path_constraint.position_constraints.append(position_constraint)
+        group.set_path_constraints(path_constraint)
+        """
+        plan = group.plan()
+        group.clear_pose_targets()
+        group.clear_path_constraints()
+        if plan.joint_trajectory.points:  # True if trajectory contains points
+            #if plan:
+            #print('plan is successful')
+            pre_grasp_plan = plan
+            break
+        else:
+            pre_grasp_plan = None
+    
+    pre_grasp_trajectory = pre_grasp_plan.joint_trajectory
+    # remember the end state to be used for next stage
+    pre_grasp_plan_end_state = robot_state_from_plan(pre_grasp_plan)
+    hello = raw_input("please input\n")
+    rospy.sleep(1.0) # allow publisher to initialize
+
+    #** stage 3: plan cartesian path to grasp pose **
+    # directly using IK to achieve this part
+
+    # firstly generate list of waypoints from pre_grasp_pose to grasp_pose, until collision happens
+    # use around 20 points in between
+    robot_state, error_code = ik(pre_grasp_pose, collision=False, init_robot_state=pre_grasp_plan_end_state)
+    num_waypoints = 20
+    total_duration = 2.  # we want 2s to go to the desired location
+    time_step = total_duration / num_waypoints
+    pre_grasp_pose_np = np.array([pre_grasp_pose.position.x, pre_grasp_pose.position.y, pre_grasp_pose.position.z])
+    grasp_pose_np = np.array([grasp_pose.position.x, grasp_pose.position.y, grasp_pose.position.z])
+    step = (grasp_pose_np - pre_grasp_pose_np) / num_waypoints
+    waypoint_list = []
+    pre_to_grasp_trajectory = JointTrajectory()
+    pre_to_grasp_trajectory.header = Header()
+    #pre_to_grasp_trajectory.header.stamp = rospy.Time.now()
+    pre_to_grasp_trajectory.header.frame_id = pre_grasp_trajectory.header.frame_id
+    pre_to_grasp_trajectory.joint_names = pre_grasp_trajectory.joint_names
+
+    last_valid_state = pre_grasp_plan_end_state
+    for i in range(1,num_waypoints+1):
+        inter_pose_np = pre_grasp_pose_np + step * i
+        inter_pose = copy.deepcopy(pre_grasp_pose)
+        inter_pose.position.x = inter_pose_np[0]
+        inter_pose.position.y = inter_pose_np[1]
+        inter_pose.position.z = inter_pose_np[2]
+        robot_state, error_code = ik(inter_pose, collision=True, init_robot_state=last_valid_state)
+        if error_code.val == 1:
+            # if IK is successful
+            # append robot_state into trajectory
+            inter_joint_traj_point = JointTrajectoryPoint()
+            inter_joint_traj_point.positions = robot_state.joint_state.position[:6]  # filter out the gripper joints
+            inter_joint_traj_point.velocities = robot_state.joint_state.velocity[:6]
+            #inter_joint_traj_point.accelerations = 0.
+            inter_joint_traj_point.effort = robot_state.joint_state.effort[:6]
+            inter_joint_traj_point.time_from_start = rospy.Duration.from_sec(time_step * i)
+            pre_to_grasp_trajectory.points.append(inter_joint_traj_point)
+
+            last_valid_state = robot_state
+        else:
+            print("IK failed at straight-line")
+            
+    grasp_plan_end_state = last_valid_state
+
+    """
+    grasp_pose_np = np.array([grasp_pose.position.x, grasp_pose.position.y, grasp_pose.position.z])
+    retreat_vec = retreat_vec_calculation(grasp_pose, local_retreat_vec=np.array([-1.,0,0]))
+    retreat_step_size = 0.001
+    current_retreat_step = 0.
+    for planning_attempt_i in range(100):
+        current_retreat_step = retreat_step_size * planning_attempt_i
+        print('current retreat step: %f' % (current_retreat_step))
+        # obtain the retreated grasping pose
+        current_pose = grasp_pose_np + current_retreat_step * retreat_vec
+        grasp_pose.position.x = current_pose[0]
+        grasp_pose.position.y = current_pose[1]
+        grasp_pose.position.z = current_pose[2]
+        # verify if the pose is valid by IK and Collision Check
+        status = verify_pose(grasp_pose)
+        if not status:
+            pre_to_grasp_plan = None
+            print('Goal pose is not valid. Another attempt is tried...')
+            continue
+
+        x.pose = grasp_pose
+        group.set_start_state(pre_grasp_plan_end_state)  # set the start state as the last state of previous plan
+        group.set_pose_target(x)
+        group.set_planning_time(5)
+        group.set_num_planning_attempts(100)
+        group.allow_replanning(True)
+        plan = group.plan()
+        group.clear_pose_targets()
+        group.clear_path_constraints()
+        if plan.joint_trajectory.points:  # True if trajectory contains points
+            #if plan:
+            pre_to_grasp_plan = plan
+            break
+    hello = raw_input("please input\n")
+    rospy.sleep(1.0) # allow publisher to initialize
+
+    
+    # define grasp_plan_end_state to connect plan
+    grasp_plan_end_state = robot_state_from_plan(pre_to_grasp_plan)
+    pre_to_grasp_trajectory = pre_to_grasp_plan.joint_trajectory
+    """
+
+    #
+
+
+
+    #** stage 4: attach the object to the gripper. plan the place trajectory to move the arm **
+    #** attach object to gripper **
+    # achieve this by modifying the start robot state
+    from moveit_msgs.msg import AttachedCollisionObject, CollisionObject
+    from shape_msgs.msg import Mesh, MeshTriangle, SolidPrimitive
+    from geometry_msgs.msg import Point
+    import pyassimp
+    attached_obj = AttachedCollisionObject()
+    attached_obj.link_name = "robotiq_2f_85_left_pad"
+    touch_links = ["robotiq_2f_85_left_pad", "robotiq_2f_85_right_pad", \
+                   "robotiq_2f_85_left_spring_link", "robotiq_2f_85_right_spring_link", \
+                   "robotiq_2f_85_left_follower", "robotiq_2f_85_right_follower", \
+                   "robotiq_2f_85_left_driver", "robotiq_2f_85_right_driver"]
+    attached_obj.touch_links = touch_links
+    # specify the attached object shape
+    attached_obj_shape = CollisionObject()
+    attached_obj_shape.id = model_name
+    mesh = Mesh()
+    # load mesh file
+    pyassimp_mesh = pyassimp.load("/root/ocrtoc_materials/models/"+model_name+"/meshes/textured.obj")
+    if not pyassimp_mesh.meshes:
+        rospy.logerr('Unable to load mesh')
+        sys.exit(1)
+    for face in pyassimp_mesh.meshes[0].faces:
+        triangle = MeshTriangle()
+        triangle.vertex_indices = [face[0],
+                                   face[1],
+                                   face[2]]
+        mesh.triangles.append(triangle)
+    for vertex in pyassimp_mesh.meshes[0].vertices:
+        point = Point()
+        point.x = vertex[0]*scale[0]
+        point.y = vertex[1]*scale[0]
+        point.z = vertex[2]*scale[0]
+        mesh.vertices.append(point)
+    pyassimp.release(pyassimp_mesh)
+    attached_obj_shape.meshes.append(mesh)
+    attached_obj_shape.mesh_poses.append(obj_pose1)
+    attached_obj_shape.operation = attached_obj_shape.ADD
+    print('robot group header:')
+    print(group.get_current_pose().header)
+    attached_obj_shape.header = group.get_current_pose().header
+
+    attached_obj.object = attached_obj_shape
+    grasp_plan_end_state.attached_collision_objects.append(attached_obj)
+    #** plan **
+    target_pose = grasp_pose_transformation_from_object_pose(obj_pose1, obj_pose2, grasp_pose)
+    place_plan = place(start_state=grasp_plan_end_state, target_pose=target_pose)
+    place_trajectory = place_plan.joint_trajectory
+    hello = raw_input("please input\n")
+    rospy.sleep(1.0) # allow publisher to initialize
+    
+    # remove the object from the planning scene
+    scene.remove_attached_object(link="robotiq_2f_85_left_pad", name=model_name)
+
+    return pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory
+
+
+
+def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
+    """
+    function:
+    ===========================================
+    given start pose, object pose, grasp pose and drop pose, return a plan for execution
+
+    details:
+    ===========================================
+    1. generate pre-grasp pose
+    2. plan a path to pre-grasp pose
+    3. plan a cartesian path to grasp pose
+    <-- execute gripper closing -->
+    4. plan a path to drop pose
+    <-- execute gipper openning -->
+
+    input:
+    ===========================================
+    model_name, obj_pose1, obj_pose2
+
+    format: geometry_msgs/Pose
+
+    output:
+    ===========================================
+    pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory
+
+    format: geometry_msgs/Pose
+    """
+    #robot = moveit_commander.RobotCommander()
+    scene = moveit_commander.PlanningSceneInterface()
+    #group_arm_name = "robot_arm"
+    #group = moveit_commander.MoveGroupCommander(group_arm_name)
+    print('end effector:')
+    print(group.get_end_effector_link())
+
+
+    #** stage 1: generate grasp pose proposals **
+    from grasp_srv.msg import ObjectPoses, Grasps
+    from grasp_srv.srv import GraspGen, GraspGenResponse
+    rospy.wait_for_service('grasp_gen')
+    # generate message
+    grasp_srv_request_poses = ObjectPoses()
+    grasp_srv_request_poses.object_names.append(model_name)
+    grasp_srv_request_poses.object_scales.append(scale[0])
+    grasp_srv_request_poses.object_poses.append(obj_pose1)
+    try:
+        grasp_gen = rospy.ServiceProxy('grasp_gen', GraspGen)
+        resp1 = grasp_gen(grasp_srv_request_poses)
+        print('pose generation result:')
+        print(resp1)
+    except rospy.ServiceException as e:
+        print("Service call failed: %s"%e)
+        sys.exit(1)
+
+    # select pose for use based on score
+    ## TODO: search if we can do multi-goal planning
+    grasp_poses = resp1.grasps.global_grasp_poses[0].grasp_poses
+    pre_grasp_poses = resp1.grasps.global_grasp_poses[0].pre_grasp_poses
+
+    grasp_pose = grasp_poses[0]
+    pre_grasp_pose = pre_grasp_poses[0]
+
+    print("============ Printing generated pre-grasp pose")
+    print(pre_grasp_pose)
+
+    #print('============ openning gripper...')
+    #gripper_openning()
+    #hello = raw_input("please input\n")
+    #rospy.sleep(1.0) # allow publisher to initialize
+
+
+    group.clear_pose_targets()
+
+    #** stage 2: generate pre-grasp plan **
+    print('============ move arm...')
+
+    # TODO:
+    # we can also add a warm-up phase to plan to the intermediate point, in order to obtain a better seed for IK.
+    # another way is to generate a continous waypoint trajectory connecting current position to the goal, and obtain
+    # IK for each place. We will use the furthest point as the seed for IK.
+
+    pre_grasp_pose_np = np.array([pre_grasp_pose.position.x, pre_grasp_pose.position.y, pre_grasp_pose.position.z])
+    retreat_vec = retreat_vec_calculation(pre_grasp_pose, local_retreat_vec=np.array([-1.,0.,0.]))
+
+    retreat_step_size = 0.001
+    current_retreat_step = 0.
+    x = group.get_current_pose()
     for planning_attempt_i in range(100):
         current_retreat_step = retreat_step_size * planning_attempt_i
         print('current retreat step: %f' % (current_retreat_step))
@@ -488,10 +790,10 @@ def execute_plan(pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory
 
 
 def place(start_state, target_pose):
-    robot = moveit_commander.RobotCommander()
-    scene = moveit_commander.PlanningSceneInterface()
-    group_arm_name = "robot_arm"
-    group = moveit_commander.MoveGroupCommander(group_arm_name)
+    #robot = moveit_commander.RobotCommander()
+    #scene = moveit_commander.PlanningSceneInterface()
+    #group_arm_name = "robot_arm"
+    #group = moveit_commander.MoveGroupCommander(group_arm_name)
     group.clear_pose_targets()
     # verify if the target pose is collision free
     # status = verify_pose(target_pose)
@@ -565,6 +867,7 @@ def main():
     target_tf = tf.transformations.compose_matrix(scale=scale, shear=shear, angles=orientation, translate=position, perspective=persp)
     scale, start_pose = tf_to_scale_pose(start_tf)
     scale, target_pose = tf_to_scale_pose(target_tf)
+    #pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory = one_shot_grasp_with_object_pose_attach_object(model_name, scale, start_pose, target_pose)
     pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory = one_shot_grasp_with_object_pose(model_name, scale, start_pose, target_pose)
     execute_plan(pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory)
 
