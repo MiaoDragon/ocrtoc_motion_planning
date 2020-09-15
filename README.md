@@ -5,7 +5,6 @@ motion planning components for IROS ocrtoc 2020 challenge.
 
 - /one_shot_grasp_with_object_pose
 
-
 **Message**
 
 ```
@@ -29,13 +28,13 @@ int32 FAILURE=99999
 **Step**
 
 ```
-roslaunch motion_planning motion_planning_pre.launch # this runs the prerequest ros setup
+roslaunch motion_planning motion_planning_pre_sapien.launch # this runs the prerequest ros setup
 rosrun motion_planning one_shot_grasp_with_object_pose_server.py # this setups the service server
 ```
 
 **Testing**
 Inside folder ocrtoc_motion_planning/ocrtoc_motion_planning/scripts, run
 ```
-roslaunch motion_planning motion_planning_pre.launch
+roslaunch motion_planning motion_planning_pre_sapien.launch # run the setup for sapien
 python motion_planning.py # Individually for testing motion planning
 ```

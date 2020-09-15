@@ -20,6 +20,8 @@ from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 import tf2_py as tf2
 import tf2_ros
 
+import tf
+
 import numpy as np
 bridge = CvBridge()
 
@@ -121,22 +123,37 @@ class PointCloudFilterMerger():
         pcd2 = np.asarray(pcd2.points)
         print('pcd1: ')
         print(np.asarray(pcd1))
+        # fix orientation issue of the camera by rotating
+        pcd1_transform = np.zeros((len(pcd1),4))
+        pcd1_transform[:,:3] = pcd1
+        pcd1_transform[:,3] = 1.
+        Re = tf.transformations.euler_matrix(0, np.pi/2,-np.pi/2, 'rxyz')
+        pcd1_transform = Re.dot(pcd1_transform.T).T
+        pcd1 = pcd1_transform[:,:3]
+        #TODO: make sure pcd2 needs the same rotation (realsense is weird)
+        pcd2_transform = np.zeros((len(pcd2),4))
+        pcd2_transform[:,:3] = pcd2
+        pcd2_transform[:,3] = 1.
+        Re = tf.transformations.euler_matrix(0, np.pi/2,-np.pi/2, 'rxyz')
+        pcd2_transform = Re.dot(pcd2_transform.T).T
+        pcd2 = pcd2_transform[:,:3]
 
         print('frame1: ')
         print(depth1_msg.header.frame_id)
         print('frame2: ')
         print(depth2_msg.header.frame_id)
 
+
         # convert to PointCloud message to transform and merge
         header = std_msgs.msg.Header()
         header.stamp = rospy.Time.now()
-        #header.frame_id = 'world'
+        #header.frame_id = 'kinect_camera_base'
         header.frame_id =depth1_msg.header.frame_id
         pcd1_msg = pcl2.create_cloud_xyz32(header, pcd1)
         print('pcd1_msg:')
         print(pcd1_msg.header)
         # pcd1_msg is correct after publishing
-        self.pcd_pub.publish(pcd1_msg)
+        self.pcd_pub.publish(pcd1_msg)  # Now we only use kinect
         return
 
         header = std_msgs.msg.Header()
@@ -164,6 +181,8 @@ class PointCloudFilterMerger():
         merged_pointcloud2 = pcl2.create_cloud_xyz32(header, merged_points)
         #publish
         self.pcd_pub.publish(merged_pointcloud2)
+
+
 
 if __name__ == '__main__':
     rospy.init_node('pcd_merger')
