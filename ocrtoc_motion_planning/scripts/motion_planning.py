@@ -144,7 +144,37 @@ def ik(pose, collision=False, init_robot_state=None):
     #group_arm_name = "robot_arm"
     #group = moveit_commander.MoveGroupCommander(group_arm_name)
     if init_robot_state is None:
+        # initialize the robot state by linearly interpolate the pose, and compute IK for each position
+        # use the last one as the init
         init_robot_state = robot.get_current_state()
+        num_waypoints = 10
+        init_pose_stamped = group.get_current_pose()
+        init_pose = init_pose_stamped.pose
+        T = scale_pose_to_tf(scale=None, pose=init_pose)
+        _, _, init_r, init_pos, _ = tf.transformations.decompose_matrix(T)
+        # linearly interpolate
+        T = scale_pose_to_tf(scale=None, pose=pose)
+        _, _, r, pos, _ = tf.transformations.decompose_matrix(T)
+        pos_list = [np.linspace(start=init_pos[i], stop=pos[i], num=num_waypoints) for i in range(len(pos))]
+        r_list = [np.linspace(start=init_r[i], stop=r[i], num=num_waypoints) for i in range(len(r))]
+        pos_list = np.array(pos_list).T
+        r_list = np.array(r_list).T
+        # each time use the previous vaild state as initialization
+        last_valid_state = init_robot_state
+        for i in range(num_waypoints):
+            # obtain pose
+            T = tf.transformations.compose_matrix(translate=pos_list[i], angles=r_list[i])
+            _, current_pose = tf_to_scale_pose(T)
+            # ik on this one
+            _, robot_state, error_code = ik(pose=current_pose, collision=False, init_robot_state=last_valid_state)
+            if error_code.val == 1:
+                # update the last_valid_state to the returned state
+                last_valid_state = robot_state
+            else:
+                # failed, try next one
+                pass
+        # update init_robot_state at the end
+        init_robot_state = last_valid_state
     # call MoveIt! IK service to compute the robot state from the pose
     rospy.wait_for_service('compute_ik')
     # generate message
@@ -157,7 +187,7 @@ def ik(pose, collision=False, init_robot_state=None):
     pose_stamped.pose = pose
     ik_request.pose_stamped = pose_stamped
     ik_request.timeout = rospy.Duration.from_sec(0.005)  # from kinematics.yaml
-    ik_request.attempts = 500
+    ik_request.attempts = 50
     try:
         compute_ik = rospy.ServiceProxy('compute_ik', GetPositionIK)
         resp = compute_ik(ik_request)
@@ -171,19 +201,29 @@ def ik(pose, collision=False, init_robot_state=None):
 
     if error_code.val != 1:
         print("IK service failed with error code: %d" % (error_code.val))
-        
-    return robot_state, error_code
+    
+    # return the point to use for initalization (valid one), and other solutions
+    # if IK found, then update init_robot_state to this latest one
+    if error_code.val == 1:
+        init_robot_state = robot_state
+    return init_robot_state, robot_state, error_code
 
-def verify_pose(pose):
+def verify_pose(pose, init_robot_state=None):
     # verify if the pose is in collision
-    #robot = moveit_commander.RobotCommander()
-    #group_arm_name = "robot_arm"
-    #group = moveit_commander.MoveGroupCommander(group_arm_name)
-    #print('=========computing IK without collision========')
-    #robot_state = ik(pose, collision=False)
-    #print('=========computing IK with collision========')
-    robot_state, error_code = ik(pose, collision=True)
-    return (error_code.val == 1)  # True if SUCCESS, otherwise IK or CC failed
+    init_robot_state, robot_state, error_code = ik(pose, collision=True, init_robot_state=init_robot_state)
+    # if failed, then ik with collision OFF to get better initialization value
+    if error_code.val != 1:
+        init_robot_state, ik_robot_state, ik_error_code = ik(pose, collision=False, init_robot_state=init_robot_state)
+        if ik_error_code.val == 1:
+            # update initial value
+            init_robot_state = ik_robot_state
+        else:
+            # otherwise, keep the initial value unchanged.
+            pass
+    else:
+        # update initial value to the returned state
+        init_robot_state = robot_state
+    return init_robot_state, robot_state, (error_code.val == 1)  # True if SUCCESS, otherwise IK or CC failed
 
 def gripper_openning():
     gripper_cmd_pub = rospy.Publisher(
@@ -192,7 +232,7 @@ def gripper_openning():
 
     rospy.sleep(1.0) # allow publisher to initialize
 
-    # publish this so that gazebo can move accordingly
+    # publish this so that gazebilab3.cs.rutgers.eduo can move accordingly
     # Example: control ur5e by topic
     gripper_cmd = GripperCommandActionGoal()
     gripper_cmd.goal.command.position = 0.
@@ -211,7 +251,7 @@ def gripper_closing():
     # publish this so that gazebo can move accordingly
     # Example: control ur5e by topic
     gripper_cmd = GripperCommandActionGoal()
-    gripper_cmd.goal.command.position = 0.6
+    gripper_cmd.goal.command.position = 0.05 # sapien  # 0.6 # Gaezebo
     gripper_cmd.goal.command.max_effort = 0.0
     gripper_cmd_pub.publish(gripper_cmd)
     rospy.loginfo("Pub gripper_cmd for closing")
@@ -300,6 +340,7 @@ def one_shot_grasp_with_object_pose_attach_object(model_name, scale, obj_pose1, 
     retreat_step_size = 0.001
     current_retreat_step = 0.
     x = group.get_current_pose()
+    last_valid_state = None
 
     for planning_attempt_i in range(100):
         current_retreat_step = retreat_step_size * planning_attempt_i
@@ -310,7 +351,7 @@ def one_shot_grasp_with_object_pose_attach_object(model_name, scale, obj_pose1, 
         pre_grasp_pose.position.y = current_pose[1]
         pre_grasp_pose.position.z = current_pose[2]
         # verify if the pose is valid by IK and Collision Check
-        status = verify_pose(pre_grasp_pose)
+        last_valid_state, robot_state, status = verify_pose(pre_grasp_pose, init_robot_state=last_valid_state)
         if not status:
             pre_grasp_plan = None
             print('Goal pose is not valid. Another attempt is tried...')
@@ -366,7 +407,7 @@ def one_shot_grasp_with_object_pose_attach_object(model_name, scale, obj_pose1, 
 
     # firstly generate list of waypoints from pre_grasp_pose to grasp_pose, until collision happens
     # use around 20 points in between
-    robot_state, error_code = ik(pre_grasp_pose, collision=False, init_robot_state=pre_grasp_plan_end_state)
+    _, robot_state, error_code = ik(pre_grasp_pose, collision=False, init_robot_state=pre_grasp_plan_end_state)
     num_waypoints = 20
     total_duration = 2.  # we want 2s to go to the desired location
     time_step = total_duration / num_waypoints
@@ -387,7 +428,7 @@ def one_shot_grasp_with_object_pose_attach_object(model_name, scale, obj_pose1, 
         inter_pose.position.x = inter_pose_np[0]
         inter_pose.position.y = inter_pose_np[1]
         inter_pose.position.z = inter_pose_np[2]
-        robot_state, error_code = ik(inter_pose, collision=True, init_robot_state=last_valid_state)
+        _, robot_state, error_code = ik(inter_pose, collision=True, init_robot_state=last_valid_state)
         if error_code.val == 1:
             # if IK is successful
             # append robot_state into trajectory
@@ -596,6 +637,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
     retreat_step_size = 0.001
     current_retreat_step = 0.
     x = group.get_current_pose()
+    last_valid_state = None
     for planning_attempt_i in range(100):
         current_retreat_step = retreat_step_size * planning_attempt_i
         print('current retreat step: %f' % (current_retreat_step))
@@ -605,7 +647,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
         pre_grasp_pose.position.y = current_pose[1]
         pre_grasp_pose.position.z = current_pose[2]
         # verify if the pose is valid by IK and Collision Check
-        status = verify_pose(pre_grasp_pose)
+        last_valid_state, _, status = verify_pose(pre_grasp_pose, init_robot_state=last_valid_state)
         if not status:
             pre_grasp_plan = None
             print('Goal pose is not valid. Another attempt is tried...')
@@ -661,7 +703,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
 
     # firstly generate list of waypoints from pre_grasp_pose to grasp_pose, until collision happens
     # use around 20 points in between
-    robot_state, error_code = ik(pre_grasp_pose, collision=False, init_robot_state=pre_grasp_plan_end_state)
+    _, robot_state, error_code = ik(pre_grasp_pose, collision=False, init_robot_state=pre_grasp_plan_end_state)
     num_waypoints = 20
     total_duration = 2.  # we want 2s to go to the desired location
     time_step = total_duration / num_waypoints
@@ -682,7 +724,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
         inter_pose.position.x = inter_pose_np[0]
         inter_pose.position.y = inter_pose_np[1]
         inter_pose.position.z = inter_pose_np[2]
-        robot_state, error_code = ik(inter_pose, collision=True, init_robot_state=last_valid_state)
+        _, robot_state, error_code = ik(inter_pose, collision=True, init_robot_state=last_valid_state)
         if error_code.val == 1:
             # if IK is successful
             # append robot_state into trajectory
@@ -700,47 +742,6 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
             
     grasp_plan_end_state = last_valid_state
 
-    """
-    grasp_pose_np = np.array([grasp_pose.position.x, grasp_pose.position.y, grasp_pose.position.z])
-    retreat_vec = retreat_vec_calculation(grasp_pose, local_retreat_vec=np.array([-1.,0,0]))
-    retreat_step_size = 0.001
-    current_retreat_step = 0.
-    for planning_attempt_i in range(100):
-        current_retreat_step = retreat_step_size * planning_attempt_i
-        print('current retreat step: %f' % (current_retreat_step))
-        # obtain the retreated grasping pose
-        current_pose = grasp_pose_np + current_retreat_step * retreat_vec
-        grasp_pose.position.x = current_pose[0]
-        grasp_pose.position.y = current_pose[1]
-        grasp_pose.position.z = current_pose[2]
-        # verify if the pose is valid by IK and Collision Check
-        status = verify_pose(grasp_pose)
-        if not status:
-            pre_to_grasp_plan = None
-            print('Goal pose is not valid. Another attempt is tried...')
-            continue
-
-        x.pose = grasp_pose
-        group.set_start_state(pre_grasp_plan_end_state)  # set the start state as the last state of previous plan
-        group.set_pose_target(x)
-        group.set_planning_time(5)
-        group.set_num_planning_attempts(100)
-        group.allow_replanning(True)
-        plan = group.plan()
-        group.clear_pose_targets()
-        group.clear_path_constraints()
-        if plan.joint_trajectory.points:  # True if trajectory contains points
-            #if plan:
-            pre_to_grasp_plan = plan
-            break
-    hello = raw_input("please input\n")
-    rospy.sleep(1.0) # allow publisher to initialize
-
-    
-    # define grasp_plan_end_state to connect plan
-    grasp_plan_end_state = robot_state_from_plan(pre_to_grasp_plan)
-    pre_to_grasp_trajectory = pre_to_grasp_plan.joint_trajectory
-    """
     #** stage 4: plan the place trajectory to move the arm **
     target_pose = grasp_pose_transformation_from_object_pose(obj_pose1, obj_pose2, grasp_pose)
     place_plan = place(start_state=grasp_plan_end_state, target_pose=target_pose)
