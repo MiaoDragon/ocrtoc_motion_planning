@@ -16,6 +16,10 @@ find_package(catkin REQUIRED COMPONENTS
 )
 catkin_python_setup()
 
+add_message_files(
+  FILES
+  PointCloudFilterAction.msg
+)
 add_service_files(
   FILES
   PosePlan.srv
@@ -39,9 +43,11 @@ include_directories(
 )
 catkin_install_python(
     PROGRAMS
-    scripts/motion_planning.py
+    scripts/motion_planning_functions.py
     scripts/depth_to_pcd_merger.py
+    scripts/depth_to_pcd_kinect.py
     scripts/point_cloud_merger.py
+    scripts/pcd_filter.py
     scripts/one_shot_grasp_with_object_pose_server.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

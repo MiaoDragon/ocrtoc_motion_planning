@@ -21,7 +21,7 @@ def handle_grasp_plan(req):
 
 def motion_planning_server():
     rospy.init_node('one_shot_grasp_with_object_pose_server')
-    s = rospy.Service('one_shot_grasp_with_object_pose', OneShotGraspPlanWithObjectPose, handle_grasp_plan)
+    s = rospy.Service('/motion_planning/one_shot_grasp_with_object_pose', OneShotGraspPlanWithObjectPose, handle_grasp_plan)
     print("Ready for grasp plan.")
     rospy.spin()
 

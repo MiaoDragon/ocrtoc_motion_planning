@@ -18,7 +18,7 @@ def handle_grasp_plan(req):
 
 def motion_planning_server():
     rospy.init_node('grasp_plan_server')
-    s = rospy.Service('grasp_plan', GraspPlan, handle_grasp_plan)
+    s = rospy.Service('/motion_planning/grasp_plan', GraspPlan, handle_grasp_plan)
     print("Ready for grasp plan.")
     rospy.spin()
 

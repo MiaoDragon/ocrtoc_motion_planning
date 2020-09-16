@@ -1,0 +1,3 @@
+[submodule "robot_self_filter"]
+	path = robot_self_filter
+	url = https://github.com/MiaoDragon/robot_self_filter
