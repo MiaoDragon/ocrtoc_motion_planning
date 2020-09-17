@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 from motion_planning.srv import OneShotGraspPlanWithObjectPose, OneShotGraspPlanWithObjectPoseResponse
-from motion_planning.scripts.motion_planning_functions import one_shot_grasp_with_object_pose
+from motion_planning_functions import one_shot_grasp_with_object_pose
 import tf
 
 import rospy
