@@ -11,13 +11,21 @@ import rospy
 def handle_grasp_plan(req):
     #scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(req.object_pose1)
     #scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(req.object_pose2)
-    pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory = one_shot_grasp_with_object_pose(req.object_name, req.object_scale, req.object_pose1, req.object_pose2)
     response = OneShotGraspPlanWithObjectPoseResponse()
-    response.pre_grasp_trajectory = pre_grasp_trajectory
-    response.pre_to_grasp_trajectory = pre_to_grasp_trajectory
-    response.place_trajectory = place_trajectory
-    response.reset_trajectory = reset_trajectory
-    response.result = 1
+    try:
+        pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory = one_shot_grasp_with_object_pose(req.object_name, req.object_scale, req.object_pose1, req.object_pose2)
+    except:
+        rospy.logerr("Grasp plan failed.")
+        # plan is unsuccessful at some point
+        response.result = response.FAILURE
+    else:
+        # plan is successful
+        rospy.loginfo("Grasp plan successfully generated.")
+        response.pre_grasp_trajectory = pre_grasp_trajectory
+        response.pre_to_grasp_trajectory = pre_to_grasp_trajectory
+        response.place_trajectory = place_trajectory
+        response.reset_trajectory = reset_trajectory
+        response.result = response.SUCCESS
     return response
 
 def motion_planning_server():

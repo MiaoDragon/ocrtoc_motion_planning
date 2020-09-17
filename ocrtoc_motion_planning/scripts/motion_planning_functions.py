@@ -156,7 +156,7 @@ def display_robot_state(robot_state):
         DisplayRobotState, queue_size=10)
     rospy.sleep(1.0) # allow publisher to initialize
     robot_state_pub.publish(display_msg)
-    rospy.loginfo("Publishing display message...")
+    print("Publishing display message...")
     rospy.sleep(1.0)
     
 
@@ -437,7 +437,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
         PointCloudFilterAction, queue_size=10)
     rospy.sleep(1.0) # allow publisher to initialize
     pcd_filter_action_pub.publish(filter_action)
-    rospy.loginfo("Publishing filter action...")
+    print("Publishing filter action...")
     rospy.sleep(1.0)
 
     #** stage 1: generate grasp pose proposals **
@@ -650,7 +650,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
         PointCloudFilterAction, queue_size=10)
     rospy.sleep(1.0) # allow publisher to initialize
     pcd_filter_action_pub.publish(filter_action)
-    rospy.loginfo("Publishing filter action...")
+    print("Publishing filter action...")
     rospy.sleep(1.0)
 
 
@@ -678,7 +678,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
     filter_action.action = filter_action.StopFilter
     rospy.sleep(1.0) # allow publisher to initialize
     pcd_filter_action_pub.publish(filter_action)
-    rospy.loginfo("Publishing filter action...")
+    print("Publishing filter action...")
     rospy.sleep(1.0)
 
     # add object target_pose to the scene, because we don't want to collide with the object
