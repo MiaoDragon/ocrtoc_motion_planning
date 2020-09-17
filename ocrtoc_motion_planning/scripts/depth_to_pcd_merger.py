@@ -95,12 +95,22 @@ class PointCloudFilterMerger():
         # apply filter
         kernel_size = 11
         kernel = np.ones((kernel_size, kernel_size), np.float32) / kernel_size**2
-        depth1 = cv2.filter2D(depth1, -1, kernel)
+        #depth1 = cv2.filter2D(depth1, -1, kernel)
+        #print(depth1.shape)
+        #print(depth1[:10,:10])
+        #print(depth1[700:710,700:710])
+        depth1 = np.array(depth1)
+        #depth1[depth1>=2.0] = 10000.0
+        #depth1 = cv2.boxFilter(depth1,-1,(kernel_size,kernel_size),normalize=True, borderType=cv2.BORDER_DEFAULT)
+        depth1 = cv2.bilateralFilter(depth1,11,50,50)
         depth1 = (10000 * depth1).astype(np.uint16)
+
+
+
 
         depth2 = cv2.filter2D(depth2, -1, kernel)
         depth2 = (10000 * depth2).astype(np.uint16)
- 
+        
         #cam_intrinsics_1 = np.array([
         #    [1120.1199, 0, 640.5],
         #    [0, 1120.1199, 360.5],

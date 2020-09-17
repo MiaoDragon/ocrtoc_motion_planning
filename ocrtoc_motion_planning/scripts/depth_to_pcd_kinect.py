@@ -41,7 +41,7 @@ class DepthToPCDKinect():
 
         self.ts = message_filters.ApproximateTimeSynchronizer(camera_subs, 10, 1)
         #self.ts = message_filters.TimeSynchronizer(camera_subs, 10)
-        self.ts.registerCallback(self.to_pcd_and_merge)
+        self.ts.registerCallback(self.to_pcd)
         # for transforming the point cloud to the proper cooridnate
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)

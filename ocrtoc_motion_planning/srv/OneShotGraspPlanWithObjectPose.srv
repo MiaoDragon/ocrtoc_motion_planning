@@ -20,5 +20,6 @@ int32 result # error code
 trajectory_msgs/JointTrajectory pre_grasp_trajectory
 trajectory_msgs/JointTrajectory pre_to_grasp_trajectory
 trajectory_msgs/JointTrajectory place_trajectory
+trajectory_msgs/JointTrajectory reset_trajectory
 int32 SUCCESS=1
 int32 FAILURE=99999
