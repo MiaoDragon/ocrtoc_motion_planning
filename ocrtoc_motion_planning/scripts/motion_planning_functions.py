@@ -747,7 +747,7 @@ def main():
     scale, target_pose = tf_to_scale_pose(target_tf)
     target_pose.position.z += 0.1  # add padding
 
-    pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory = one_shot_grasp_with_object_pose_attach_object(model_name, scale, start_pose, target_pose)
+    pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory = one_shot_grasp_with_object_pose(model_name, scale, start_pose, target_pose)
     #pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory = one_shot_grasp_with_object_pose(model_name, scale, start_pose, target_pose)
     execute_plan(pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory)
 
