@@ -160,8 +160,6 @@ def display_robot_state(robot_state):
     rospy.sleep(1.0)
     
 
-#======================================================================================================
-#======================================================================================================
 # IK
 from std_msgs.msg import Header, Duration
 from moveit_msgs.msg import PositionIKRequest, RobotState, MoveItErrorCodes
@@ -255,6 +253,10 @@ def verify_pose(pose, init_robot_state=None):
         init_robot_state = robot_state
     return init_robot_state, robot_state, (error_code.val == 1)  # True if SUCCESS, otherwise IK or CC failed
 
+
+#======================================================================================================
+#======================================Execution=====================================================
+
 def gripper_openning():
     gripper_cmd_pub = rospy.Publisher(
         rospy.resolve_name('gripper_controller/gripper_cmd/goal'),
@@ -287,6 +289,57 @@ def gripper_closing():
     rospy.loginfo("Pub gripper_cmd for closing")
     rospy.sleep(1.0)
 
+
+def execute_plan(pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory):
+    # ** execution of plan **
+    # execute plan for grasping
+    arm_cmd_pub = rospy.Publisher(
+        rospy.resolve_name('arm_controller/command'),
+        JointTrajectory, queue_size=10)
+    hello = raw_input("please input\n")
+    rospy.sleep(1.0) # allow publisher to initialize
+
+    arm_cmd = pre_grasp_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    rospy.sleep(1.0)
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
+
+    arm_cmd = pre_to_grasp_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    rospy.sleep(1.0)
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
+
+    print('============ closing gripper...')
+    gripper_closing()
+
+    # execute plan for placing
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
+    arm_cmd = place_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    hello = raw_input("please input\n")
+
+    rospy.sleep(1.0)
+    # open gripper
+    print('=========== openning gripper...')
+    gripper_openning()
+    # execute plan for resetting
+    hello = raw_input("please input\n")
+    rospy.sleep(2)
+    arm_cmd = reset_trajectory
+    arm_cmd_pub.publish(arm_cmd)
+    rospy.loginfo("Pub arm_cmd")
+    rospy.sleep(1.0)
+
+#======================================================================================================
+#======================================Planner=======================================================
+
+
 def arm_reset_plan(start_state):
     # plan a path to reset position (up)
     group.clear_pose_targets()
@@ -313,7 +366,38 @@ def arm_reset_plan(start_state):
 
 
 
-def one_shot_grasp_with_object_pose_attach_object(model_name, scale, obj_pose1, obj_pose2):
+def place(start_state, target_pose):
+    group.clear_pose_targets()
+    # verify if the target pose is collision free
+    # status = verify_pose(target_pose)
+    # if not status:
+    #     place_plan = None
+    #     print('Goal pose is not valid. Another attempt is tried...')
+    #     continue
+    # plan
+    for planning_attempt_i in range(10):
+        group.set_start_state(start_state)
+        group.set_pose_target(target_pose)
+        group.set_planning_time(5)
+        group.set_num_planning_attempts(100)
+        group.allow_replanning(True)
+        plan = group.plan()
+        group.clear_pose_targets()
+        group.clear_path_constraints()
+        if plan.joint_trajectory.points:  # True if trajectory contains points
+            #if plan:
+            place_plan = plan
+            break
+        else:
+            place_plan = None
+            print('planning failed. Another attempt is tried...')
+            #goal_position_tol = goal_position_tol * 4.0
+    return place_plan
+
+
+
+
+def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
     """
     function:
     ===========================================
@@ -609,79 +693,8 @@ def one_shot_grasp_with_object_pose_attach_object(model_name, scale, obj_pose1, 
     return pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory
 
 
-def execute_plan(pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory):
-    # ** execution of plan **
-    # execute plan for grasping
-    arm_cmd_pub = rospy.Publisher(
-        rospy.resolve_name('arm_controller/command'),
-        JointTrajectory, queue_size=10)
-    hello = raw_input("please input\n")
-    rospy.sleep(1.0) # allow publisher to initialize
 
-    arm_cmd = pre_grasp_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    rospy.sleep(1.0)
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-
-    arm_cmd = pre_to_grasp_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    rospy.sleep(1.0)
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-
-    print('============ closing gripper...')
-    gripper_closing()
-
-    # execute plan for placing
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-    arm_cmd = place_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    hello = raw_input("please input\n")
-
-    rospy.sleep(1.0)
-    # open gripper
-    print('=========== openning gripper...')
-    gripper_openning()
-    # execute plan for resetting
-    hello = raw_input("please input\n")
-    rospy.sleep(2)
-    arm_cmd = reset_trajectory
-    arm_cmd_pub.publish(arm_cmd)
-    rospy.loginfo("Pub arm_cmd")
-    rospy.sleep(1.0)
-
-def place(start_state, target_pose):
-    group.clear_pose_targets()
-    # verify if the target pose is collision free
-    # status = verify_pose(target_pose)
-    # if not status:
-    #     place_plan = None
-    #     print('Goal pose is not valid. Another attempt is tried...')
-    #     continue
-    # plan
-    for planning_attempt_i in range(10):
-        group.set_start_state(start_state)
-        group.set_pose_target(target_pose)
-        group.set_planning_time(5)
-        group.set_num_planning_attempts(100)
-        group.allow_replanning(True)
-        plan = group.plan()
-        group.clear_pose_targets()
-        group.clear_path_constraints()
-        if plan.joint_trajectory.points:  # True if trajectory contains points
-            #if plan:
-            place_plan = plan
-            break
-        else:
-            place_plan = None
-            print('planning failed. Another attempt is tried...')
-            #goal_position_tol = goal_position_tol * 4.0
-    return place_plan
+#======================================================================================================
 
 def main():
     moveit_commander.roscpp_initialize(sys.argv)
