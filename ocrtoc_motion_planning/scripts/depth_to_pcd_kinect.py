@@ -46,7 +46,7 @@ class DepthToPCDKinect():
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
-        self.sub_sample_ratio = 0.5  # how many to keep
+        self.sub_sample_ratio = 0.2  # how many to keep
 
         rospy.loginfo("#######################Pointcloud merger initialized###############################")
     def color_depth_to_pcd(self, color, depth, cam_intrinsics):
