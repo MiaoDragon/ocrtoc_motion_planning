@@ -44,7 +44,7 @@ include_directories(
 catkin_install_python(
     PROGRAMS
     scripts/motion_planning_functions.py
-    scripts/motion_planning_executions.py
+    scripts/motion_planning_execution.py
     scripts/motion_planning_utils.py
     scripts/moveit_connection.py
     scripts/depth_to_pcd_merger.py

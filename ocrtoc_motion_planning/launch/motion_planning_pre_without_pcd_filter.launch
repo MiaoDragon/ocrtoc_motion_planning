@@ -1,0 +1,13 @@
+<launch>
+  <include file="$(find sapien_robot_moveit_config)/launch/move_group.launch">
+  </include>
+  <node name="depth_to_pcd_kinect" pkg="motion_planning" type="depth_to_pcd_kinect.py">
+  </node>
+  <node name="self_filter" pkg="robot_self_filter" type="self_filter" args="cloud_in:=/kinect/depth/pcd_from_depth cloud_out:=/camera/depth/points_filtered">
+    <rosparam param="sensor_frame">kinect_camera_visor</rosparam>
+    <param name="robot_description"
+         command="$(find xacro)/xacro --inorder '$(find sapien_simulator)/urdf/ur5e.urdf'"/>
+    <rosparam command="load" file="$(find motion_planning)/launch/self_seen_links.yaml"/>
+  </node>
+
+</launch>

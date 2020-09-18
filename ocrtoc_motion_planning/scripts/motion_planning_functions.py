@@ -39,13 +39,13 @@ def filter_grasp_pose(global_grasp_pose, obj_pose1, obj_pose2):
     pose_idx = np.argsort(-scores)  #argsort is small -> large, we add "-" to make it large->small
     #* IK and collision check using pre_grasp_pose, and grasp_pose (we use initial solution from last IK)
     # for both, we allow retreat up to some point
-    retreat_step_size = 0.005
-    retreat_num_step = 10
+    retreat_num_step = 5
     last_valid_state = None  # we use this for init IK
     
     found_grasp_pose_i = -1
     fonud_pre_grasp_pose = None
     found_grasp_pose = None
+    found_target_pose = None
     for grasp_pose_i in pose_idx:
         pre_grasp_pose = global_grasp_pose.pre_grasp_poses[grasp_pose_i]
         grasp_pose = global_grasp_pose.grasp_poses[grasp_pose_i]
@@ -56,12 +56,11 @@ def filter_grasp_pose(global_grasp_pose, obj_pose1, obj_pose2):
         grasp_retreat_vec = retreat_vec_calculation(grasp_pose, local_retreat_vec=np.array([-1.,0.,0.]))
 
         current_retreat_step = 0.
-
-        pose_valid = False
+        # find pre_grasp_pose
+        retreat_step_size = 0.01
         for grasp_verify_i in range(retreat_num_step):
             # check for pregrasp pose
             current_retreat_step = retreat_step_size * grasp_verify_i
-            print('current retreat step: %f' % (current_retreat_step))
             # obtain the retreated grasping pose
             current_pose = pre_grasp_pose_np + current_retreat_step * pre_grasp_retreat_vec
             pre_grasp_pose.position.x = current_pose[0]
@@ -69,10 +68,18 @@ def filter_grasp_pose(global_grasp_pose, obj_pose1, obj_pose2):
             pre_grasp_pose.position.z = current_pose[2]
             # verify if the pose is valid by IK and Collision Check
             last_valid_state, robot_state, pre_grasp_status = verify_pose(pre_grasp_pose, init_robot_state=last_valid_state)
-
+            if pre_grasp_status:
+                break
+        if not pre_grasp_status:
+            # try another grasp pose
+            continue
+        # otherwise the found one ise pre_grasp_pose
+        print('found pre_grasp_pose')
+        # find grasp_pose, smaller retreat step
+        retreat_step_size = 0.008
+        for grasp_verify_i in range(retreat_num_step):            
             # check for grasp pose
             current_retreat_step = retreat_step_size * grasp_verify_i
-            print('current retreat step: %f' % (current_retreat_step))
             # obtain the retreated grasping pose
             current_pose = grasp_pose_np + current_retreat_step * grasp_retreat_vec
             grasp_pose.position.x = current_pose[0]
@@ -80,29 +87,29 @@ def filter_grasp_pose(global_grasp_pose, obj_pose1, obj_pose2):
             grasp_pose.position.z = current_pose[2]
             # verify if the pose is valid by IK and Collision Check
             last_valid_state, robot_state, grasp_status = verify_pose(grasp_pose, init_robot_state=last_valid_state)
-
-            # if both succeed, then break
-            if pre_grasp_status and grasp_status:
-                pose_valid = True
-                fonud_pre_grasp_pose = pre_grasp_pose
-                found_grasp_pose = grasp_pose
+            if grasp_status:
                 break
-        if pose_valid:
+        if not grasp_status:
+            # try another grasp pose
+            continue
+        print('found pre_grasp_pose and grasp_pose')
+        # obtain target arm pose based on grasp pose and object poses
+        target_pose = grasp_pose_transformation_from_object_pose(obj_pose1, obj_pose2, grasp_pose)
+        # check if target_pose is in collision
+        _, _, target_status = verify_pose(target_pose, init_robot_state=None)
+        # if all succeeded, then break
+        if target_status:
             found_grasp_pose_i = grasp_pose_i
+            fonud_pre_grasp_pose = pre_grasp_pose
+            found_grasp_pose = grasp_pose
+            found_target_pose = target_pose
             break
     if found_grasp_pose_i == -1:
         # all grasp positions failed, error
-        respy.logerr("generated grasp poses are invalid (in collision or not valid IK).")
+        rospy.logerr("generated grasp poses are invalid (in collision or not valid IK).")
         sys.exit(1)
 
-    # obtain target arm pose based on grasp pose and object poses
-    target_pose = grasp_pose_transformation_from_object_pose(obj_pose1, obj_pose2, found_grasp_pose)
-    # check if target_pose is in collision
-    _, _, target_status = verify_pose(target_pose, init_robot_state=None)
-    if not target_status:
-        rospy.logerr("transformed grasp pose (target pose) is invlid. (in collision or not valid IK)")
-        sys.exit(1)
-    return fonud_pre_grasp_pose, found_grasp_pose, target_pose
+    return fonud_pre_grasp_pose, found_grasp_pose, found_target_pose
 
 
 def pre_grasp(start_state, target_pose):
@@ -163,8 +170,6 @@ def straight_line_move(start_state, start_pose, target_pose):
             inter_joint_traj_point.time_from_start = rospy.Duration.from_sec(time_step * i)
             straight_line_trajectory.points.append(inter_joint_traj_point)
             last_valid_state = robot_state
-        else:
-            rospy.logerr("IK failed at straight-line")
     return straight_line_trajectory
 
 
@@ -225,6 +230,7 @@ def attach_object_to_gripper(model_name, scale, obj_pose, grasp_state):
     grasp_state.attached_collision_objects.append(attached_obj)
     grasp_state.is_diff = True  # is different from others since we attached the object
     # start filter
+    """
     filter_action = PointCloudFilterAction()
     filter_action.action = filter_action.StartFilter
     # obtain filter parameters
@@ -239,13 +245,13 @@ def attach_object_to_gripper(model_name, scale, obj_pose, grasp_state):
     pcd_filter_action_pub.publish(filter_action)
     print("Publishing filter action...")
     rospy.sleep(1.0)
-
+    """
     # update octomap by clearing existing ones
     clear_octomap()
 
     # publish the robot state for visualization
-    display_robot_state(grasp_state)
-    hello = raw_input("end of attaching object. Please input...\n")
+    #display_robot_state(grasp_state)
+    #hello = raw_input("end of attaching object. Please input...\n")
     rospy.sleep(1.0) # allow publisher to initialize
     return grasp_state
 
@@ -349,6 +355,7 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
     scene.remove_world_object()
     rospy.sleep(1.0)
     # stop filter
+    """
     from motion_planning.msg import PointCloudFilterAction
     filter_action = PointCloudFilterAction()
     filter_action.action = filter_action.StopFilter
@@ -359,6 +366,8 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
     pcd_filter_action_pub.publish(filter_action)
     print("Publishing filter action...")
     rospy.sleep(1.0)
+    """
+
     #########################################
 
     #** stage 1: generate grasp pose proposals **
@@ -438,13 +447,14 @@ def one_shot_grasp_with_object_pose(model_name, scale, obj_pose1, obj_pose2):
     # remove the object from the planning scene
     scene.remove_attached_object(link="robotiq_2f_85_left_pad", name=model_name)
     # remove filter
+    """
     filter_action = PointCloudFilterAction()
     filter_action.action = filter_action.StopFilter
     rospy.sleep(1.0) # allow publisher to initialize
     pcd_filter_action_pub.publish(filter_action)
     print("Publishing filter action...")
     rospy.sleep(1.0)
-
+    """
     # add object target_pose to the scene, because we don't want to collide with the object
     # or use some other ways, like straight-line up
     obj_pose_stamped = PoseStamped()

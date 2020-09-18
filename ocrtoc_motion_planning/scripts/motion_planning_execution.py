@@ -49,7 +49,7 @@ def gripper_closing():
     # publish this so that gazebo can move accordingly
     # Example: control ur5e by topic
     gripper_cmd = GripperCommandActionGoal()
-    gripper_cmd.goal.command.position = 0.05 # sapien  # 0.6 # Gaezebo
+    gripper_cmd.goal.command.position = 0.044 # sapien  # 0.6 # Gaezebo
     gripper_cmd.goal.command.max_effort = 0.0
     gripper_cmd_pub.publish(gripper_cmd)
     rospy.loginfo("Pub gripper_cmd for closing")
