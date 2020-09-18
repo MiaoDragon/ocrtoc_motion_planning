@@ -85,7 +85,7 @@ def store_pose_based_on_gripper(global_grasp_pose, grasp_id):
         if joint_state.name[i] == 'robotiq_2f_85_left_driver_joint':
             gripper_driver_i = i
             break
-    ratio = joint_state.position[gripper_driver_i] / close_value
+    ratio = joint_state.position[gripper_driver_i] / gripper_close_value
     print('ratio: %f' % (ratio))
     threshold = 0.9
     if ratio >= threshold:
