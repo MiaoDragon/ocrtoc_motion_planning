@@ -695,7 +695,7 @@ def main():
     scale, target_pose = tf_to_scale_pose(target_tf)
 
     pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory, global_grasp_pose, grasp_pose_i = one_shot_grasp_with_object_pose_close_loop(model_name, scale, start_pose, target_pose)
-    motion_planning_execution.execute_plan(pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory, model_name, global_grasp_pose, grasp_pose_i)
+    motion_planning_execution.execute_plan_close_loop(pre_grasp_trajectory, pre_to_grasp_trajectory, place_trajectory, reset_trajectory, model_name, global_grasp_pose, grasp_pose_i)
 
 if __name__ == "__main__":
     main()
