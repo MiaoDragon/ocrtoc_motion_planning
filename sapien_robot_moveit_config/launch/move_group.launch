@@ -21,6 +21,7 @@
 
   <arg name="capabilities" default=""/>
   <arg name="disable_capabilities" default=""/>
+  <arg name="output" default="log"/>
   <!-- load these non-default MoveGroup capabilities (space seperated) -->
   <!--
   <arg name="capabilities" value="
@@ -61,7 +62,7 @@
   </include>
 
   <!-- Start the actual move_group node/action server -->
-  <node name="move_group" launch-prefix="$(arg launch_prefix)" pkg="moveit_ros_move_group" type="move_group" respawn="false" output="screen" args="$(arg command_args)">
+  <node name="move_group" launch-prefix="$(arg launch_prefix)" pkg="moveit_ros_move_group" type="move_group" respawn="false" output="$(arg output)" args="$(arg command_args)">
     <!-- Set the display variable, in case OpenGL code is used internally -->
     <env name="DISPLAY" value="$(optenv DISPLAY :0)" />
 

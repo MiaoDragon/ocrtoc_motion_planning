@@ -1,13 +1,12 @@
 <launch>
-  <arg name="gripper" default="robotiq_2f_85" />
   <include file="$(find ur5_e_robotiq_2f_85_moveit_config)/launch/all.launch">
     <arg name="output" value="screen" />
   </include>
   <!-- <node name="depth_to_pcd_kinect_multithread" pkg="motion_planning" type="depth_to_pcd_kinect_multithread.py"/> -->
   <node name="self_filter" pkg="robot_self_filter" type="self_filter" args="cloud_in:=/kinect/depth/pcd_from_depth cloud_out:=/camera/depth/points_filtered">
-    <rosparam param="sensor_frame">rgb_camera_link</rosparam>
-    <!-- <rosparam param="sensor_frame">kinect_camera_visor</rosparam> for sim -->
-    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find ur_e_description)/urdf/ur5e_joint_limited_robot.urdf.xacro' gripper:=$(arg gripper)"/>
+    <!-- <rosparam param="sensor_frame">rgb_camera_link</rosparam> -->  <!-- for real -->
+    <rosparam param="sensor_frame">kinect_camera_visor</rosparam>  <!-- for sim -->
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find sapien_simulator)/urdf/ur5e.urdf'"/>
     <rosparam command="load" file="$(find motion_planning)/launch/self_seen_links.yaml"/>
   </node>
   <!-- launch UR5 IK service -->

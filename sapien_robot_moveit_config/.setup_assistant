@@ -8,4 +8,4 @@ moveit_setup_assistant_config:
   CONFIG:
     author_name: Yinglong Miao
     author_email: yinglong.miao@rutgers.edu
-    generated_timestamp: 1600061970
+    generated_timestamp: 1600559616

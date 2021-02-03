@@ -1,0 +1,8 @@
+# Define input
+geometry_msgs/Pose target_pose # target_pose of robot-arm end-effector
+---
+#Define output
+sensor_msgs/JointState[] solutions
+int32 result # error code
+int32 SUCCESS=1
+int32 FAILURE=99999

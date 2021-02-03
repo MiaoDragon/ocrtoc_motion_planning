@@ -19,7 +19,12 @@ geometry_msgs/Pose object_pose2 # target object pose
 int32 result # error code
 trajectory_msgs/JointTrajectory pre_grasp_trajectory
 trajectory_msgs/JointTrajectory pre_to_grasp_trajectory
+trajectory_msgs/JointTrajectory post_grasp_trajectory
 trajectory_msgs/JointTrajectory place_trajectory
+trajectory_msgs/JointTrajectory post_place_trajectory
 trajectory_msgs/JointTrajectory reset_trajectory
+
+# for recording the successful grasp
+
 int32 SUCCESS=1
 int32 FAILURE=99999

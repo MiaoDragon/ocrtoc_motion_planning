@@ -12,7 +12,7 @@ def handle_grasp_plan(req):
     scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(req.object_pose1)
     scale, shear, angles, trans, persp = tf.transformations.decompose_matrix(req.object_pose2)
     result = plan_grasp(req.object_name, req.object_pose1, req.object_pose2)
-    response = GraspPlanResponse()
+    response = GraspPlanWithObjectPoseResponse()
     response.result = result
     return response
 

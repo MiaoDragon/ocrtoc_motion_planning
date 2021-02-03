@@ -4,7 +4,7 @@
 joint_limits:
   elbow_joint:
     has_velocity_limits: true
-    max_velocity: 3.14
+    max_velocity: 2
     has_acceleration_limits: false
     max_acceleration: 0
   robotiq_2f_85_left_driver_joint:
@@ -39,26 +39,26 @@ joint_limits:
     max_acceleration: 0
   shoulder_lift_joint:
     has_velocity_limits: true
-    max_velocity: 3.14
+    max_velocity: 2
     has_acceleration_limits: false
     max_acceleration: 0
   shoulder_pan_joint:
     has_velocity_limits: true
-    max_velocity: 3.14
+    max_velocity: 2
     has_acceleration_limits: false
     max_acceleration: 0
   wrist_1_joint:
     has_velocity_limits: true
-    max_velocity: 6.28
+    max_velocity: 2
     has_acceleration_limits: false
     max_acceleration: 0
   wrist_2_joint:
     has_velocity_limits: true
-    max_velocity: 6.28
+    max_velocity: 2
     has_acceleration_limits: false
     max_acceleration: 0
   wrist_3_joint:
     has_velocity_limits: true
-    max_velocity: 6.28
+    max_velocity: 2
     has_acceleration_limits: false
     max_acceleration: 0
